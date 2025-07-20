@@ -19,6 +19,13 @@ export mom="/home/petteri/onedrive_windows/04_archives/mom-help-execl"
 
 export pro="/home/petteri/onedrive_windows/01_projects/"
 export courses="/home/petteri/onedrive_windows/04_archives/courses"
+export fullstack="/home/petteri/development_files/fullstack/part2/"
+
+
+
+fs() {
+	cursor "/home/petteri/development_files/fullstack/$1"
+}
 
 
 md2pdf() {
@@ -31,10 +38,20 @@ x() {
 	xdg-open "${1:-.}" &> /dev/null
 }
 
-c() {
-	out="$(fc -ln -1| sed 's/^[[:space:]]*//')"
-	"$out" | xclip -selection clipboard
-	echo "✔ previous output copied"
+## NOTE THIS DOESN'T WORK. DOES NOT COPY...
+# in this command, fc -ln picks up the previous command that was run before it
+# | sed 's/^[[:space:]]*//'   ==> this command takes the stdin of the fc -ln command and trims the whitespace that exists in the beginning of the command
+# c() {
+# 	cmd="$(fc -ln -1| sed 's/^[[:space:]]*//')"
+# 	# this part runs the command and redirects the stdcmd to clipboard (if you wanted to copy the command you would just echo it)
+# 	printf %s "$cmd" | xclip -selection clipboard -loops 1
+# 	echo "✔ previous output copied"
+# }
+
+
+clip() {
+	"$@" | tee >(xclip -selection clipboard)
+	echo "copied to clipboard"
 }
 
 
@@ -167,3 +184,5 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
+cursor() { /opt/cursor.appimage --no-sandbox "$@" >/dev/null 2>&1 & }
+manall() { man -a "$1" | less; }

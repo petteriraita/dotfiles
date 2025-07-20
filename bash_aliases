@@ -21,3 +21,4 @@ alias gc='git commit -m'
 
 alias xopen='xdg-open'
 alias copywd='pwd | xclip -selection clipboard'
+alias ch='cursor --reuse-window'
