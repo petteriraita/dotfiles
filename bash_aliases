@@ -1,5 +1,3 @@
-
-
 # MY OWN SETTINGS 
 alias ..='cd ..'                                    # Move up one directory level
 alias ...='cd ../..'                                # Move up two directory levels
@@ -7,7 +5,7 @@ alias update='sudo apt update && sudo apt upgrade'  # Update and upgrade package
 alias bsource='source ~/.bashrc'                     # Reload .bashrc to apply changes
 alias b='nvim ~/.bashrc'                     # Reload .bashrc to apply changes
 alias balias='nvim ~/.bash_aliases'                     # Reload .bashrc to apply changes
-alias cursorrc='cursor ~/.bashrc'
+alias coderc='code ~/.bashrc'
 
 
 
@@ -21,4 +19,4 @@ alias gc='git commit -m'
 
 alias xopen='xdg-open'
 alias copywd='pwd | xclip -selection clipboard'
-alias ch='cursor --reuse-window'
+alias ch='code --reuse-window'

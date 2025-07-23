@@ -1,4 +1,5 @@
 # If not running interactively, don't do anything
+# 
 case $- in
     *i*) ;;
       *) return;;
@@ -26,7 +27,7 @@ export obs="/home/petteri/onedrive_windows/03_resources/Obsidian/my_vault"
 # opens up the fullstack project in the proper directory
 cfs() {
 	if [[ $# -lt 1 ]]; then
-		echo "Usage cfs <partnumber> [cursoride flags]"
+		echo "Usage cfs <partnumber> [codeide flags]"
 		return 1
 	fi
 
@@ -35,7 +36,7 @@ cfs() {
 	shift
 
 	base="/home/petteri/development_files/fullstack/part$num"
-	cursor "$base" "$@"
+	code "$base" "$@"
 }
 
 
