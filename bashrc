@@ -20,11 +20,22 @@ export mom="/home/petteri/onedrive_windows/04_archives/mom-help-execl"
 export pro="/home/petteri/onedrive_windows/01_projects/"
 export courses="/home/petteri/onedrive_windows/04_archives/courses"
 export fullstack="/home/petteri/development_files/fullstack/part2/"
+export obs="/home/petteri/onedrive_windows/03_resources/Obsidian/my_vault"
 
 
+# opens up the fullstack project in the proper directory
+cfs() {
+	if [[ $# -lt 1 ]]; then
+		echo "Usage cfs <partnumber> [cursoride flags]"
+		return 1
+	fi
 
-fs() {
-	cursor "/home/petteri/development_files/fullstack/$1"
+	local num="$1"
+	# deleting the $1 from the arguments such that $@ will return the rest of the args
+	shift
+
+	base="/home/petteri/development_files/fullstack/part$num"
+	cursor "$base" "$@"
 }
 
 
@@ -186,3 +197,4 @@ unset __conda_setup
 
 cursor() { /opt/cursor.appimage --no-sandbox "$@" >/dev/null 2>&1 & }
 manall() { man -a "$1" | less; }
+export PATH=~/.npm-global/bin:$PATH
