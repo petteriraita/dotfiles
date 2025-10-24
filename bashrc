@@ -15,7 +15,7 @@ export os="/home/petteri/development_files/iitb_courses/os_course/"
 export cv="/home/petteri/onedrive_windows/01_projects/work_application_2025/"
 export grades="/home/petteri/onedrive_windows/03_resources/grades"
 export damp="/home/petteri/onedrive_windows/01_projects/iitb_courses/DAMP_resources/"
-export leet="/home/petteri/development_files/iitb_courses/DAA/leetcode/"
+export leet="/home/petteri/development_files/leetcode/"
 export mom="/home/petteri/onedrive_windows/04_archives/mom-help-execl"
 
 export pro="/home/petteri/onedrive_windows/01_projects/"
@@ -37,6 +37,13 @@ cfs() {
 
 	base="/home/petteri/development_files/fullstack/part$num"
 	code "$base" "$@"
+}
+
+# creates a file and opens it in vs code
+o() {
+	# based on the sort-circuiting behavior in Bash, we can first evaluate the file extension correct and if not, evaluate the second expression (set file to .txt)
+	[[ "$1" == *.* ]] || set -- "$1.txt"
+	touch "$1" && code "$1"
 }
 
 
@@ -178,24 +185,22 @@ if ! shopt -oq posix; then
     . /etc/bash_completion
   fi
 fi
-# increasing the scroll speed
-# imwheel -k -b "4 5" &
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/petteri/Downloads/yes/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+__conda_setup="$('/home/petteri/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/home/petteri/Downloads/yes/etc/profile.d/conda.sh" ]; then
-        . "/home/petteri/Downloads/yes/etc/profile.d/conda.sh"
+    if [ -f "/home/petteri/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/petteri/miniconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/home/petteri/Downloads/yes/bin:$PATH"
+        export PATH="/home/petteri/miniconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-cursor() { /opt/cursor.appimage --no-sandbox "$@" >/dev/null 2>&1 & }
-manall() { man -a "$1" | less; }
 export PATH=~/.npm-global/bin:$PATH
+# this makes the LESS pager to use the 4th top row to show the match
+export LESS='-j4'

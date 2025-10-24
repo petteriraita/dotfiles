@@ -26,7 +26,19 @@ set nohlsearch
 
 " setting up the spaces well
 set autoindent
-set smartindent
-set cindent
-set cinoptions+=j1  " Keep opening braces { on the same line
+" set the indentation to be specific for each language
+augroup CLangs
+  autocmd!
+  autocmd FileType c,cpp,java setlocal cindent
+  autocmd FileType c,cpp,java setlocal cinoptions+=j1
+augroup END
+
+augroup PythonIndent
+  autocmd!
+  " ensure Python uses its own indenter, not cindent
+  autocmd FileType python setlocal nocindent nosmartindent
+  " canonical Python spaces
+  autocmd FileType python setlocal expandtab shiftwidth=4 softtabstop=4 tabstop=4
+augroup END
+
 

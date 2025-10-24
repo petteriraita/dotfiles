@@ -1,0 +1,7 @@
+[init]
+	defaultBranch = main
+[user]
+	email = petteri.r.raita@gmail.com
+	name = Petteri Raita
+[core]
+	pager = less -RX
