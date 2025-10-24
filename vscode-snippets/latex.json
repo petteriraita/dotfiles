@@ -1,0 +1,115 @@
+{
+  "Fraction": {
+    "prefix": "fr",
+    "body": "\\frac{${1:n}}{${2:d}}"
+  },
+  "Partial Derivative": {
+    "prefix": "pd",
+    "body": "\\frac{\\partial ${1:f}}{\\partial ${2:x}}"
+  },
+  "Multiplication": {
+    "prefix": "x",
+    "body": "\\cdot $0"
+  },
+  "Derivative": {
+    "prefix": "dd",
+    "body": "\\frac{d${1:f}}{d${2:x}}"
+  },
+  "Inline Math": {
+    "prefix": "m",
+    "body": "$${1}$"
+  },
+  "Displayed Math": {
+    "prefix": "dm",
+    "body": "\\[\n  ${1}\n\\]"
+  },
+
+  // ----- SYMBOLS / OPERATORS -----
+  "Sum": {
+    "prefix": "su",
+    "body": "\\sum_{${1:i}=1}^{${2:n}} ${3}"
+  },
+  "Integral": {
+    "prefix": "int",
+    "body": "\\int_{${1:a}}^{${2:b}} ${3}"
+  },
+  "Limit": {
+    "prefix": "lim",
+    "body": "\\lim_{${1:x}\\to${2:0}} ${3}"
+  },
+  "Vector": {
+    "prefix": "vv",
+    "body": "\\vec{${1:v}}"
+  },
+  "Hat": {
+    "prefix": "hh",
+    "body": "\\hat{${1:x}}"
+  },
+
+  // ----- ENVIRONMENTS -----
+  "Align": {
+    "prefix": "al",
+    "body": "\\begin{align}\n  ${1}\n\\end{align}"
+  },
+  "Itemize": {
+    "prefix": "it",
+    "body": "\\begin{itemize}\n  \\item ${1}\n\\end{itemize}"
+  },
+  "Enumerate": {
+    "prefix": "en",
+    "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
+  },
+  "Figure": {
+    "prefix": "fig",
+    "body": "\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=${1:\\linewidth}]{${2:path}}\n  \\caption{${3:caption}}\n  \\label{fig:${4:label}}\n\\end{figure}"
+  },
+
+  // ----- SHORT COMMANDS -----
+  "Bold Math": {
+    "prefix": "bb",
+    "body": "\\mathbf{${1:x}}"
+  },
+  "Calligraphic": {
+    "prefix": "cc",
+    "body": "\\mathcal{${1:A}}"
+  },
+  "Expectation": {
+    "prefix": "ee",
+    "body": "\\mathbb{E}[${1:X}]"
+  },
+  "Probability": {
+    "prefix": "pp",
+    "body": "\\mathbb{P}(${1:A})"
+  },
+
+  // ----- TEXT UTILITIES -----
+  "Section": {
+    "prefix": "sec",
+    "body": "\\section{${1:Title}}"
+  },
+  "Subsection": {
+    "prefix": "sub",
+    "body": "\\subsection{${1:Title}}"
+  },
+  "Label": {
+    "prefix": "lb",
+    "body": "\\label{${1:label}}"
+  },
+  "Ref": {
+    "prefix": "rf",
+    "body": "\\ref{${1:label}}"
+  },
+  "Cite": {
+    "prefix": "ct",
+    "body": "\\cite{${1:key}}"
+  },
+  "Bold Text": {
+    "prefix": "bf",
+    "body": "\\textbf{${1:text}}"
+  },
+  "Math Text": {
+    "prefix": "tx",
+    "body": "\\text{${1:text}}$0"
+  }
+}
+
