@@ -1,0 +1,21 @@
+Discord	com.discordapp.Discord	0.0.107	stable	flathub	system
+Pinta	com.github.PintaProject.Pinta	3.0.3	stable	flathub	system
+WhatsApp for Linux	com.github.eneshecan.WhatsAppForLinux	1.6.5	stable	flathub	system
+Fcitx 5	org.fcitx.Fcitx5	5.1.14	stable	flathub	system
+Freedesktop Platform	org.freedesktop.Platform	freedesktop-sdk-24.08.24	24.08	flathub	system
+Mesa	org.freedesktop.Platform.GL.default	24.3.1	23.08	flathub	system
+Mesa (Extra)	org.freedesktop.Platform.GL.default	24.3.1	23.08-extra	flathub	system
+Mesa	org.freedesktop.Platform.GL.default	25.2.2	24.08	flathub	system
+Mesa (Extra)	org.freedesktop.Platform.GL.default	25.2.2	24.08extra	flathub	system
+FFmpeg extension with extra codecs	org.freedesktop.Platform.ffmpeg-full		24.08	flathub	system
+openh264	org.freedesktop.Platform.openh264	2.1.0	2.2.0	flathub	system
+openh264	org.freedesktop.Platform.openh264	2.4.1	2.4.1	flathub	system
+openh264	org.freedesktop.Platform.openh264	2.5.1	2.5.1	flathub	system
+GNOME Application Platform version 45	org.gnome.Platform		45	flathub	system
+GNOME Application Platform version 48	org.gnome.Platform		48	flathub	system
+Mint-Y-Aqua Gtk Theme	org.gtk.Gtk3theme.Mint-Y-Aqua		3.22	flathub	system
+KDE Application Platform	org.kde.Platform		6.9	flathub	system
+Anzan	org.sorobanexam.anzan		master	anzan-origin	user
+Telegram	org.telegram.desktop	5.10.3	stable	flathub	system
+Telegram Desktop Webview Add-on	org.telegram.desktop.webview	2.46.5	stable	flathub	system
+Zotero	org.zotero.Zotero	7.0.24	stable	flathub	system

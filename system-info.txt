@@ -1,0 +1,59 @@
+System:
+  Host: petteri-IdeaPad-Pro-5-16APH8 Kernel: 6.8.0-86-generic arch: x86_64
+    bits: 64
+  Desktop: Cinnamon v: 6.2.9 Distro: Linux Mint 22 Wilma
+Machine:
+  Type: Laptop System: LENOVO product: 83AR v: IdeaPad Pro 5 16APH8
+    serial: <superuser required>
+  Mobo: LENOVO model: LNVNB161216 v: SDK0T76463 WIN
+    serial: <superuser required> UEFI: LENOVO v: MDCN33WW date: 01/24/2024
+Battery:
+  ID-1: BAT0 charge: 58.9 Wh (83.5%) condition: 70.5/75.0 Wh (94.0%)
+CPU:
+  Info: 8-core model: AMD Ryzen 7 7840HS with Radeon 780M Graphics bits: 64
+    type: MT MCP cache: L2: 8 MiB
+  Speed (MHz): avg: 586 min/max: 400/5137 cores: 1: 400 2: 400 3: 400 4: 400
+    5: 400 6: 400 7: 1397 8: 2385 9: 400 10: 400 11: 400 12: 400 13: 400 14: 400
+    15: 400 16: 400
+Graphics:
+  Device-1: AMD Phoenix1 driver: amdgpu v: kernel
+  Device-2: Bison Integrated RGB Camera driver: uvcvideo type: USB
+  Display: x11 server: X.Org v: 21.1.11 with: Xwayland v: 23.2.6 driver: X:
+    loaded: amdgpu unloaded: fbdev,modesetting,vesa dri: radeonsi gpu: amdgpu
+    resolution: 2560x1600~120Hz
+  API: EGL v: 1.5 drivers: kms_swrast,radeonsi,swrast
+    platforms: gbm,x11,surfaceless,device
+  API: OpenGL v: 4.6 compat-v: 4.5 vendor: amd mesa
+    v: 25.0.7-0ubuntu0.24.04.2 renderer: AMD Radeon 780M (radeonsi phoenix LLVM
+    20.1.2 DRM 3.57 6.8.0-86-generic)
+Audio:
+  Device-1: AMD Rembrandt Radeon High Definition Audio driver: snd_hda_intel
+  Device-2: AMD ACP/ACP3X/ACP6x Audio Coprocessor driver: snd_pci_ps
+  Device-3: AMD Family 17h/19h HD Audio driver: snd_hda_intel
+  API: ALSA v: k6.8.0-86-generic status: kernel-api
+  Server-1: PipeWire v: 1.0.5 status: active
+Network:
+  Device-1: MEDIATEK MT7922 802.11ax PCI Express Wireless Network Adapter
+    driver: mt7921e
+  IF: wlp1s0 state: up mac: 4c:82:a9:04:4b:eb
+  IF-ID-1: docker0 state: down mac: ba:1a:ca:5e:cd:a5
+Bluetooth:
+  Device-1: Foxconn / Hon Hai Bluetooth Adapter driver: btusb type: USB
+  Report: hciconfig ID: hci0 state: up address: 4C:82:A9:04:4B:EC bt-v: 5.2
+Drives:
+  Local Storage: total: 476.94 GiB used: 150.33 GiB (31.5%)
+  ID-1: /dev/nvme0n1 vendor: Lenovo model: UMIS RPJTJ512MKP1QDY
+    size: 476.94 GiB
+Partition:
+  ID-1: / size: 177.98 GiB used: 150.29 GiB (84.4%) fs: ext4
+    dev: /dev/nvme0n1p4
+  ID-2: /boot/efi size: 256 MiB used: 47.1 MiB (18.4%) fs: vfat
+    dev: /dev/nvme0n1p1
+Swap:
+  ID-1: swap-1 type: file size: 2 GiB used: 768 KiB (0.0%) file: /swapfile
+Sensors:
+  System Temperatures: cpu: 42.6 C mobo: 40.0 C gpu: amdgpu temp: 37.0 C
+  Fan Speeds (rpm): N/A
+Info:
+  Memory: total: 16 GiB note: est. available: 13.43 GiB used: 5.34 GiB (39.8%)
+  Processes: 431 Uptime: 1h 10m Shell: Bash inxi: 3.3.34
