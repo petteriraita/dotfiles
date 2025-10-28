@@ -1,0 +1,45 @@
+[
+  {
+    "key": "ctrl+tab",
+    "command": "workbench.action.nextEditor"
+  },
+  {
+    "key": "ctrl+shift+tab",
+    "command": "workbench.action.previousEditor"
+  },
+  {
+      "key": "ctrl+shift+e",
+      "command": "workbench.action.toggleSidebarVisibility",
+      "when": "sideBarVisible"
+   },
+   {
+      "key": "ctrl+shift+e",
+      "command": "workbench.view.explorer",
+      "when": "!sideBarVisible"
+   }, 
+   {
+    "key": "space l",
+    "command": "workbench.action.moveEditorToNextGroup",
+    "when": "editorTextFocus && vim.mode == 'Normal'"
+  },
+  {
+    "key": "space h",
+    "command": "workbench.action.moveEditorToPreviousGroup",
+    "when": "editorTextFocus && vim.mode == 'Normal'"
+  },
+  /* 1 – Right‑bar (secondary side‑bar) toggle                          */
+  {
+    "key": "ctrl+l",
+    "command": "workbench.panel.chat.view.copilot.focus"
+  },
+  {
+    "key": "ctrl+l",
+    "command": "workbench.panel.chat",
+    "when": "workbench.panel.chat.view.copilot.active"
+  },
+  {
+    "key": "ctrl+alt+i",
+    "command": "-workbench.panel.chat",
+    "when": "workbench.panel.chat.view.copilot.active"
+  }
+]

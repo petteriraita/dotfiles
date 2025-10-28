@@ -1,0 +1,133 @@
+{
+    "vim.autoindent": true,
+    "vim.useSystemClipboard": true,
+    "explorer.confirmDelete": false,
+    "vim.vimrc.enable": true,
+    "vim.vimrc.path": "~/.vimrc",
+    "security.workspace.trust.untrustedFiles": "open",
+    "explorer.confirmDragAndDrop": false,
+    "workbench.startupEditor": "none",
+    "terminal.integrated.defaultProfile.windows": "Git Bash",
+    "files.exclude": {
+        "**/._*": true
+    },
+    "vim.smartRelativeLine": true,
+    // Add vim.handleKeys settings here
+    "vim.handleKeys": {
+        "<C-p>": false,
+        "k": false,
+        "j": false
+    },
+    "vim.normalModeKeyBindingsNonRecursive": [
+        {
+            "before": [
+                "j"
+            ],
+            "after": [
+                "g",
+                "j"
+            ] // move down visual line
+        },
+        {
+            "before": [
+                "k"
+            ],
+            "after": [
+                "g",
+                "k"
+            ] // move up visual line
+        },
+        {
+            "before": [
+                "0"
+            ],
+            "after": [
+                "g",
+                "0"
+            ] // go to start of visual line
+        },
+        {
+            "before": [
+                "$"
+            ],
+            "after": [
+                "g",
+                "$"
+            ] // go to end of visual line
+        },
+        {
+            "before": [
+                "="
+            ],
+            "commands": [
+                "editor.action.formatDocument"
+            ]
+        },
+        {
+            "before": [
+                "=",
+                "="
+            ],
+            "commands": [
+                "editor.action.formatDocument"
+            ]
+        }
+    ],
+    "editor.minimap.enabled": false,
+    "makefile.configureOnOpen": true,
+    "files.autoSave": "afterDelay",
+    "C_Cpp.clang_format_style": "file",
+    "[cpp]": {
+        "editor.formatOnSave": true
+    },
+    "[java]": {
+        "editor.formatOnSave": true
+    },
+    // "editor.snippetSuggestions": "top",
+    "workbench.activityBar.location": "hidden",
+    "extensions.ignoreRecommendations": true,
+    "C_Cpp.copilotHover": "disabled",
+    "github.copilot.editor.enableCodeActions": false,
+    "editor.inlineSuggest.enabled": false,
+    "git.openRepositoryInParentFolders": "always",
+    "window.confirmSaveUntitledWorkspace": false,
+    "github.copilot.nextEditSuggestions.enabled": true,
+    "redhat.telemetry.enabled": false,
+    // disable intrusive latex-workshop notifications
+    "latex-workshop.message.error.show": false,
+    "latex-workshop.message.warning.show": false,
+    "latex-workshop.message.information.show": false,
+
+    // still build automatically on save
+    "latex-workshop.latex.autoBuild.run": "onSave",
+    "[latex]": {
+        "editor.defaultFormatter": "James-Yu.latex-workshop"
+    },
+    "latex-workshop.formatting.latex": "latexindent",
+    "latex-workshop.formatting.latexindent.path": "latexindent",
+    "latex-workshop.formatting.latexindent.args": [
+        "-m",
+        "-l"
+    ],
+    "[python]": {
+        "editor.insertSpaces": true,
+        "editor.tabSize": 4,
+        "editor.detectIndentation": false,
+        "editor.autoIndent": "full",
+        "editor.formatOnType": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "python.analysis.typeCheckingMode": "standard",
+    "notebook.lineNumbers": "on",
+    "autoDocstring.docstringFormat": "numpy",
+    "autoDocstring.includeExtendedSummary": true,
+    "autoDocstring.includeName": true,
+    "autoDocstring.startOnNewLine": true,
+    // trying to get jupyter line numbers to relative
+    "editor.lineNumbers": "relative",
+    "terminal.integrated.inheritEnv": false
+
+    // ... other settings
+
+}
