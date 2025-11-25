@@ -56,6 +56,9 @@ coffre() {
 x() {
 	xdg-open "${1:-.}" &> /dev/null
 }
+winopen() {
+	explorer.exe "${1}"
+}
 
 ## NOTE THIS DOESN'T WORK. DOES NOT COPY...
 # in this command, fc -ln picks up the previous command that was run before it
@@ -73,6 +76,17 @@ clip() {
 	echo "copied to clipboard"
 }
 
+wp() {
+    # convert /path/... to \\wsl.localhost\Ubuntu\path\...
+    local abs_file  abs
+    abs_file="$(realpath "$1")" || return 1
+    abs="$(dirname "$abs_file")"
+    # replace forward slashes with backslashes
+    local abs_win="${abs//\//\\}"
+    local win="\\\\wsl.localhost\\Ubuntu${abs_win}"
+    echo -n "$win" | xclip -selection clipboard
+    echo "📋 copied $win"
+}
 
 
 psfilter() {
@@ -188,14 +202,14 @@ fi
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/petteri/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+__conda_setup="$('/home/petteriraita/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/home/petteri/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/home/petteri/miniconda3/etc/profile.d/conda.sh"
+    if [ -f "/home/petteriraita/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/petteriraita/miniconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/home/petteri/miniconda3/bin:$PATH"
+        export PATH="/home/petteriraita/miniconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup
@@ -204,3 +218,5 @@ unset __conda_setup
 export PATH=~/.npm-global/bin:$PATH
 # this makes the LESS pager to use the 4th top row to show the match
 export LESS='-j4'
+
+. "$HOME/.local/bin/env"

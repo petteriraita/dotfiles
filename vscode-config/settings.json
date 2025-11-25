@@ -11,6 +11,12 @@
     "files.exclude": {
         "**/._*": true
     },
+    "extensions.experimental.affinity": {
+    "vscodevim.vim": 1,
+    "vscode.typescript-language-features": 2
+},
+
+
     "vim.smartRelativeLine": true,
     // Add vim.handleKeys settings here
     "vim.handleKeys": {
@@ -118,6 +124,8 @@
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "ms-python.black-formatter"
     },
+    // PRO users dont look ignore .gitignore files in ctrl P - go to file options
+    "search.useIgnoreFiles": false,
     "python.analysis.typeCheckingMode": "standard",
     "notebook.lineNumbers": "on",
     "autoDocstring.docstringFormat": "numpy",
@@ -126,8 +134,18 @@
     "autoDocstring.startOnNewLine": true,
     // trying to get jupyter line numbers to relative
     "editor.lineNumbers": "relative",
-    "terminal.integrated.inheritEnv": false
+    "terminal.integrated.inheritEnv": false,
 
+
+    "python.experiments.optOutFrom": ["DeprecatePythonPath"],
+    "python.defaultInterpreterPath": "/home/petteriraita/miniconda3/envs/generalp/bin/python",
+    "python.venvPath": "/home/petteriraita/miniconda3/envs",
+    "python.terminal.activateEnvironment": true,
+    "python.interpreter.warning.ignoreLegacyPython": true,
+    "python.analysis.indexing": true,
+    "python.analysis.searchPaths": [
+        "/home/petteriraita/miniconda3/envs/generalp/lib/python3.10"
+    ]
     // ... other settings
 
 }
