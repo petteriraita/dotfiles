@@ -66,13 +66,12 @@ winopen() {
 # c() {
 # 	cmd="$(fc -ln -1| sed 's/^[[:space:]]*//')"
 # 	# this part runs the command and redirects the stdcmd to clipboard (if you wanted to copy the command you would just echo it)
-# 	printf %s "$cmd" | xclip -selection clipboard -loops 1
+# 	printf %s "$cmd" | wl-copy -loops 1
 # 	echo "✔ previous output copied"
 # }
 
-
 clip() {
-	"$@" | tee >(xclip -selection clipboard)
+	"$@" | tee >(wl-copy)
 	echo "copied to clipboard"
 }
 
@@ -84,9 +83,11 @@ wp() {
     # replace forward slashes with backslashes
     local abs_win="${abs//\//\\}"
     local win="\\\\wsl.localhost\\Ubuntu${abs_win}"
-    echo -n "$win" | xclip -selection clipboard
+    echo -n "$win" | wl-copy
     echo "📋 copied $win"
 }
+
+
 
 
 psfilter() {
@@ -215,8 +216,6 @@ fi
 unset __conda_setup
 # <<< conda initialize <<<
 
-export PATH=~/.npm-global/bin:$PATH
 # this makes the LESS pager to use the 4th top row to show the match
 export LESS='-j4'
 
-. "$HOME/.local/bin/env"
