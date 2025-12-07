@@ -2,12 +2,27 @@
   // ----- MATH SYMBOLS -----
   "Fraction": {
     "prefix": "fr",
-    "body": "\\frac{${1:n}}{${2:d}}"
+    "body": "\\frac{${1:1}}{${2:2}}"
   },
   "Partial Derivative": {
     "prefix": "pd",
     "body": "\\frac{\\partial ${1:f}}{\\partial ${2:x}}"
   },
+  "Norm": {
+  "prefix": "nn",
+  "body": "\\| ${1:x} \\|_{${2:2}}"
+  },
+
+  "Equation": {
+  "prefix": "eq",
+  "body": "\\begin{equation}\n  ${1}\n  \\label{${2:eq}}\n\\end{equation}"
+  },
+
+  "cases": {
+  "prefix": "ca",
+  "body": "\\begin{cases}\n  ${1}\n\\end{cases}"
+  },
+
   "Multiplication": {
     "prefix": "x",
     "body": "\\cdot $0"
@@ -32,7 +47,14 @@
   "prefix": "ss",
   "body": "\\subseteq $0"
 },
-
+"mod": {
+  "prefix": "m",
+  "body": "\\bmod $0"
+},
+"bar": {
+  "prefix": "b",
+  "body": "\\bar{$0}"
+},
 
 
   // ----- SYMBOLS / OPERATORS -----
@@ -89,6 +111,10 @@
     "prefix": "en",
     "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
   },
+  "answerbox": {
+    "prefix": "an",
+    "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
+  },
   "Figure": {
     "prefix": "fig",
     "body": "\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=${1:\\linewidth}]{${2:path}}\n  \\caption{${3:caption}}\n  \\label{fig:${4:label}}\n\\end{figure}"
@@ -107,19 +133,38 @@
     "prefix": "ee",
     "body": "\\mathbb{E}[${1:X}]"
   },
+  "infty": {
+    "prefix": "inf",
+    "body": "\\infty"
+  },
   "Probability": {
     "prefix": "pp",
     "body": "\\mathbb{P}(${1:A})"
+  },
+  // ----- Cryptograph -----
+"bitstring crypto": {
+  "prefix": "bi",
+  "body": "\\\\{0,1\\\\}"
+} ,
+
+  // CHP specific
+  "problem in chp": {
+    "prefix": "pr",
+    "body": "\\textsc{${1}}"
+  },
+  "word in chp": {
+    "prefix": "w",
+    "body": "\\word{${1}}"
   },
 
   // ----- TEXT UTILITIES -----
   "Section": {
     "prefix": "sec",
-    "body": "\\section{${1:Title}}"
+    "body": "\\section{} ${1}"
   },
   "Subsection": {
     "prefix": "sub",
-    "body": "\\subsection{${1:Title}}"
+    "body": "\\subsection{} $0"
   },
   "Label": {
     "prefix": "lb",

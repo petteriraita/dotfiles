@@ -39,6 +39,7 @@ cfs() {
 	code "$base" "$@"
 }
 
+
 # creates a file and opens it in vs code
 o() {
 	# based on the sort-circuiting behavior in Bash, we can first evaluate the file extension correct and if not, evaluate the second expression (set file to .txt)
@@ -46,6 +47,15 @@ o() {
 	touch "$1" && code "$1"
 }
 
+# activate the py310 conda environment (c a p  ) 
+cap() {
+	conda activate py310
+}
+
+ag() {
+ 	# $@ = all arguments as separate words (correct quoting semantics).
+	antigravity "$@"
+}
 
 md2pdf() {
     pandoc "$1" -o "${1%.md}.pdf" --pdf-engine=xelatex -V fontsize=12pt 
@@ -60,21 +70,22 @@ winopen() {
 	explorer.exe "${1}"
 }
 
-## NOTE THIS DOESN'T WORK. DOES NOT COPY...
-# in this command, fc -ln picks up the previous command that was run before it
-# | sed 's/^[[:space:]]*//'   ==> this command takes the stdin of the fc -ln command and trims the whitespace that exists in the beginning of the command
-# c() {
-# 	cmd="$(fc -ln -1| sed 's/^[[:space:]]*//')"
-# 	# this part runs the command and redirects the stdcmd to clipboard (if you wanted to copy the command you would just echo it)
-# 	printf %s "$cmd" | wl-copy -loops 1
-# 	echo "✔ previous output copied"
-# }
-
 clip() {
 	"$@" | tee >(wl-copy)
 	echo "copied to clipboard"
 }
 
+cop() {
+	# echo "test"
+	wl-copy
+}
+
+p() {
+    local abs_file  abs
+    abs="$(realpath "$1")" || return 1
+    echo -n "$abs" | wl-copy
+    echo "📋 copied $abs"
+}
 wp() {
     # convert /path/... to \\wsl.localhost\Ubuntu\path\...
     local abs_file  abs
@@ -203,14 +214,14 @@ fi
 
 # >>> conda initialize >>>
 # !! Contents within this block are managed by 'conda init' !!
-__conda_setup="$('/home/petteriraita/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+__conda_setup="$('/home/pt/miniconda3/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
 if [ $? -eq 0 ]; then
     eval "$__conda_setup"
 else
-    if [ -f "/home/petteriraita/miniconda3/etc/profile.d/conda.sh" ]; then
-        . "/home/petteriraita/miniconda3/etc/profile.d/conda.sh"
+    if [ -f "/home/pt/miniconda3/etc/profile.d/conda.sh" ]; then
+        . "/home/pt/miniconda3/etc/profile.d/conda.sh"
     else
-        export PATH="/home/petteriraita/miniconda3/bin:$PATH"
+        export PATH="/home/pt/miniconda3/bin:$PATH"
     fi
 fi
 unset __conda_setup

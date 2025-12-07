@@ -145,7 +145,8 @@
     "python.analysis.indexing": true,
     "python.analysis.searchPaths": [
         "/home/petteriraita/miniconda3/envs/generalp/lib/python3.10"
-    ]
+    ],
+    "python.createEnvironment.trigger": "off"
     // ... other settings
 
 }

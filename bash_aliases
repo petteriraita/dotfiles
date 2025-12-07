@@ -1,16 +1,29 @@
 # MY OWN SETTINGS 
+#
+# CLI TOOLS
 alias ..='cd ..'                                    # Move up one directory level
 alias ...='cd ../..'                                # Move up two directory levels
-alias update='sudo apt update && sudo apt upgrade'  # Update and upgrade packages
+
+# Shell utilitiees
+alias ll="ls -lh"
+alias ls="ls --color=auto"
+alias lla="ls -lha"
+alias la="ls -A"
+alias lt="ls -lhtr"
+alias ld="ls -d */"
+
+
+
+
 alias bsource='source ~/.bashrc'                     # Reload .bashrc to apply changes
 alias b='vim ~/.bashrc'                     # Reload .bashrc to apply changes
 alias balias='vim ~/.bash_aliases'                     # Reload .bashrc to apply changes
-alias coderc='code ~/.bashrc'
 alias hist='history | sort -r | head -n 10'
 alias calc='code /home/petteri/development_files/python_gre/calulator.ipynb'
 alias jpamb='code development_files/dtu/program_analysis/jpamb/'
-alias gowin='cd /mnt/c/Users/Lanlan/Documents/Petteri-Raita-2025-files'
 alias py='python3'
+alias vim='vimx'
+
 
 # the JPAMB project
 alias ia="uv run framework/integrated_analysis.py"
@@ -22,15 +35,17 @@ alias day='redshift -x'
 alias eve='redshift -O 2700'
 
 
+## GIT
 alias gs='git status'
 alias ga='git add'
+alias gp='git push'
 alias gc='git commit -m'
+alias gb='git branch'
+alias gba='git branch -a'
+alias gr='git restore'
 
 alias xopen='xdg-open'
 alias copywd='pwd | xclip -selection clipboard'
 alias ch='code --reuse-window'
-alias c='code .'
 
-# Shell utilitiees
-alias ll='ls -l'
 
