@@ -81,8 +81,14 @@ cop() {
 }
 
 p() {
-    local abs_file  abs
-    abs="$(realpath "$1")" || return 1
+    local abs
+
+    if [ -z "$1" ]; then
+        abs="$(pwd)"
+    else
+        abs="$(realpath "$1")" || return 1
+    fi
+
     echo -n "$abs" | wl-copy
     echo "📋 copied $abs"
 }
@@ -230,3 +236,4 @@ unset __conda_setup
 # this makes the LESS pager to use the 4th top row to show the match
 export LESS='-j4'
 
+export PATH="$PATH:/var/lib/flatpak/exports/bin"

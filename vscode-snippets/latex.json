@@ -113,7 +113,7 @@
   },
   "answerbox": {
     "prefix": "an",
-    "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
+    "body": "\\begin{answerbox}\n${1}\n\\end{answerbox}"
   },
   "Figure": {
     "prefix": "fig",
