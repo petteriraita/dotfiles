@@ -56,6 +56,10 @@ ag() {
  	# $@ = all arguments as separate words (correct quoting semantics).
 	antigravity "$@"
 }
+templ() {
+    cp -i ~/dev/latex-templates/main.tex "$1"
+    echo "created $1"
+}
 
 md2pdf() {
     pandoc "$1" -o "${1%.md}.pdf" --pdf-engine=xelatex -V fontsize=12pt 

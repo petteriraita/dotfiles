@@ -141,12 +141,24 @@
     "prefix": "pp",
     "body": "\\mathbb{P}(${1:A})"
   },
+  "boolean t": {
+    "prefix": "T",
+    "body": "TRUE"
+  },
+  "boolean f": {
+    "prefix": "F",
+    "body": "FALSE"
+  },
   // ----- Cryptograph -----
 "bitstring crypto": {
   "prefix": "bi",
   "body": "\\\\{0,1\\\\}"
 } ,
 
+"braces": {
+  "prefix": "bra",
+  "body": "\\\\{${1}\\\\}"
+} ,
   // CHP specific
   "problem in chp": {
     "prefix": "pr",
@@ -160,11 +172,11 @@
   // ----- TEXT UTILITIES -----
   "Section": {
     "prefix": "sec",
-    "body": "\\section{} ${1}"
+    "body": "\\section{$0}"
   },
   "Subsection": {
     "prefix": "sub",
-    "body": "\\subsection{} $0"
+    "body": "\\subsection{$0}"
   },
   "Label": {
     "prefix": "lb",

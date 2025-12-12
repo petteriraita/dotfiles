@@ -14,7 +14,7 @@ set $mod Mod4
 
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
-font pango:monospace 8
+font pango:monospace 14
 
 # This font is widely installed, provides lots of unicode glyphs, right-to-left
 # text rendering and scalability on retina/hidpi displays (thanks to pango).
@@ -53,15 +53,7 @@ tiling_drag modifier titlebar
 
 
 # kill focused window
-bindsym $mod+Shift+q kill
-
-# start dmenu (a program launcher)
-bindsym $mod+d exec --no-startup-id dmenu_run
-# A more modern dmenu replacement is rofi:
-# bindcode $mod+40 exec "rofi -modi drun,run -show drun"
-# There also is i3-dmenu-desktop which only displays applications shipping a
-# .desktop file. It is a wrapper around dmenu, so you need that installed.
-# bindcode $mod+40 exec --no-startup-id i3-dmenu-desktop
+bindsym $mod+q kill
 
 # # change focus
 # bindsym $mod+j focus left
@@ -205,13 +197,6 @@ bar {
 # make a terminal start 
 bindsym $mod+Return exec /usr/bin/kitty
 
-
-## my mouse swap setting
-exec --no-startup-id xinput set-button-map 9 3 2 1 4 5 6 7 8 9 10
-exec --no-startup-id xinput set-button-map 11 3 2 1 4 5 6 7
-
-
-
 ### my audio
 # $mod + F-keys for volume (firmware-independent)
 bindsym $mod+F1 exec pamixer -t
@@ -226,5 +211,35 @@ bindsym $mod+F6 exec brightnessctl set 5%+
 bindsym $mod+Ctrl+l exec i3lock
 
 
+# start dmenu (a program launcher)
+# bindsym $mod+d exec --no-startup-id dmenu_run
+# A more modern dmenu replacement is rofi:
+# bindcode $mod+40 exec "rofi -modi drun,run -show drun"
+# There also is i3-dmenu-desktop which only displays applications shipping a
+# .desktop file. It is a wrapper around dmenu, so you need that installed.
+# bindcode $mod+40 exec --no-startup-id i3-dmenu-desktop
+
 # App launcher that understands Flatpak .desktop files
-bindsym $mod+Shift+d exec --no-startup-id i3-dmenu-desktop
+bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
+# bindsym $mod+Shift+d exec --no-startup-id i3-dmenu-desktop
+
+# making the scrolling be right direction
+exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" 304 1
+
+
+## adding screenshot tool:
+bindsym F9 exec --no-startup-id maim -s | xclip -selection clipboard -t image/png
+bindsym Shift+F9 exec --no-startup-id maim | xclip -selection clipboard -t image/png
+# bindsym $mod+Shift+F9 exec --no-startup-id maim -i $(xdotool getactivewindow) | xclip -selection clipboard -t image/png
+
+## making the clipboard manager always on and floating
+for_window [class="copyq"] floating enable
+for_window [class="copyq"] border pixel 2
+
+exec --no-startup-id copyq --start-server
+
+# Start gammastep in X11 (RANDR) mode with your config.ini
+exec --no-startup-id gammastep -m randr:screen=0
+
+
+

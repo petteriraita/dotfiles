@@ -23,6 +23,9 @@ set relativenumber
 
 " Disable search highlighting
 set nohlsearch
+" change the command line introducer
+nnoremap ; :
+vnoremap ; :
 
 " setting up the spaces well
 set autoindent

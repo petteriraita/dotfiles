@@ -34,6 +34,10 @@ alias night='redshift -O 1000'
 alias day='redshift -x'
 alias eve='redshift -O 2700'
 
+## i3
+alias iconf='vim ~/.config/i3/config'
+
+
 
 ## GIT
 alias gs='git status'

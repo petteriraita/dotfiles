@@ -16,24 +16,24 @@
       "key": "ctrl+shift+e",
       "command": "workbench.view.explorer",
       "when": "!sideBarVisible"
-   }, 
+   },
    {
-    "key": "space l",
-    "command": "workbench.action.moveEditorToNextGroup",
-    "when": "editorTextFocus && vim.mode == 'Normal'"
-  },
-  {
-    "key": "space h",
-    "command": "workbench.action.moveEditorToPreviousGroup",
-    "when": "editorTextFocus && vim.mode == 'Normal'"
-  },
+  "key": "ctrl+h",
+  "command": "workbench.action.moveEditorToPreviousGroup",
+  "when": "editorFocus || pdfViewerFocus"
+},
+{
+  "key": "ctrl+l",
+  "command": "workbench.action.moveEditorToNextGroup",
+  "when": "editorFocus || pdfViewerFocus"
+},
   /* 1 – Right‑bar (secondary side‑bar) toggle                          */
   {
-    "key": "ctrl+l",
+    "key": "ctrl+shift+alt+l",
     "command": "workbench.panel.chat.view.copilot.focus"
   },
   {
-    "key": "ctrl+l",
+    "key": "ctrl+shift+alt+l",
     "command": "workbench.panel.chat",
     "when": "workbench.panel.chat.view.copilot.active"
   },
