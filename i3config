@@ -12,6 +12,25 @@ exec --no-startup-id dbus-launch --sh-syntax --exit-with-session
 
 set $mod Mod4
 
+
+
+########################################
+# Workspace → output ownership (POLICY)
+########################################
+
+# laptop internal display
+workspace 9 output eDP-1
+
+# external monitor
+workspace 1 output HDMI-1
+workspace 2 output HDMI-1
+workspace 3 output HDMI-1
+workspace 4 output HDMI-1
+workspace 5 output HDMI-1
+workspace 6 output HDMI-1
+workspace 7 output HDMI-1
+workspace 8 output HDMI-1
+
 # Font for window titles. Will also be used by the bar unless a different font
 # is used in the bar {} block below.
 font pango:monospace 14
@@ -53,7 +72,7 @@ tiling_drag modifier titlebar
 
 
 # kill focused window
-bindsym $mod+q kill
+bindsym $mod+Shift+q kill
 
 # # change focus
 # bindsym $mod+j focus left
@@ -224,13 +243,12 @@ bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 # bindsym $mod+Shift+d exec --no-startup-id i3-dmenu-desktop
 
 # making the scrolling be right direction
-exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" 304 1
-
-
+# exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" 304 1
+exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" "libinput Natural Scrolling Enabled" 1
 ## adding screenshot tool:
 bindsym F9 exec --no-startup-id maim -s | xclip -selection clipboard -t image/png
-bindsym Shift+F9 exec --no-startup-id maim | xclip -selection clipboard -t image/png
-# bindsym $mod+Shift+F9 exec --no-startup-id maim -i $(xdotool getactivewindow) | xclip -selection clipboard -t image/png
+bindsym Shift+F9 exec --no-startup-id sh -c 'maim -i "$(xdotool getactivewindow)" |  xclip -selection clipboard -t image/png'
+bindsym $mod+Shift+F9 exec --no-startup-id maim | xclip -selection clipboard -t image/png
 
 ## making the clipboard manager always on and floating
 for_window [class="copyq"] floating enable
@@ -238,8 +256,12 @@ for_window [class="copyq"] border pixel 2
 
 exec --no-startup-id copyq --start-server
 
+# add the automatic state changes
+exec --no-startup-id autorandr --change --force
+
 # Start gammastep in X11 (RANDR) mode with your config.ini
 exec --no-startup-id gammastep -m randr:screen=0
 
-
+## bluetooht
+exec --no-startup-id blueman-applet
 

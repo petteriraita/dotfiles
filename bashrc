@@ -11,17 +11,6 @@ export FCEDIT=vim
 export EDITOR=vim
 export VISUAL=vim
 
-export os="/home/petteri/development_files/iitb_courses/os_course/"
-export cv="/home/petteri/onedrive_windows/01_projects/work_application_2025/"
-export grades="/home/petteri/onedrive_windows/03_resources/grades"
-export damp="/home/petteri/onedrive_windows/01_projects/iitb_courses/DAMP_resources/"
-export leet="/home/petteri/development_files/leetcode/"
-export mom="/home/petteri/onedrive_windows/04_archives/mom-help-execl"
-
-export pro="/home/petteri/onedrive_windows/01_projects/"
-export courses="/home/petteri/onedrive_windows/04_archives/courses"
-export fullstack="/home/petteri/development_files/fullstack/part2/"
-export obs="/home/petteri/onedrive_windows/03_resources/Obsidian/my_vault"
 
 
 # opens up the fullstack project in the proper directory
@@ -75,13 +64,13 @@ winopen() {
 }
 
 clip() {
-	"$@" | tee >(wl-copy)
-	echo "copied to clipboard"
+    xclip -selection clipboard < "$1"
+    echo "copied to clipboard"
 }
 
 cop() {
 	# echo "test"
-	wl-copy
+	xclip -selection-clipboard
 }
 
 p() {
@@ -93,7 +82,7 @@ p() {
         abs="$(realpath "$1")" || return 1
     fi
 
-    echo -n "$abs" | wl-copy
+    echo -n "$abs" | xclip -selection clipboard
     echo "📋 copied $abs"
 }
 wp() {
@@ -104,7 +93,7 @@ wp() {
     # replace forward slashes with backslashes
     local abs_win="${abs//\//\\}"
     local win="\\\\wsl.localhost\\Ubuntu${abs_win}"
-    echo -n "$win" | wl-copy
+    echo -n "$win" | xclip -selection-clipboard
     echo "📋 copied $win"
 }
 
