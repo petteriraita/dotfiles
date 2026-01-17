@@ -14,7 +14,9 @@
     "extensions.experimental.affinity": {
     "vscodevim.vim": 1,
     "vscode.typescript-language-features": 2
-},
+    },
+    // disabling vs code updates
+    "update.mode": "none",
 
 
     "vim.smartRelativeLine": true,

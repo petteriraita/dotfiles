@@ -5,7 +5,6 @@ case $- in
       *) return;;
 esac
 
-
 # setting vim as the default for bash
 export FCEDIT=vim
 export EDITOR=vim
@@ -62,15 +61,25 @@ x() {
 winopen() {
 	explorer.exe "${1}"
 }
+# this function below is potentially dangerous and shouldnt be used with rm commands
+xc() {
+  local cmd
+  printf -v cmd '%q ' "$@"   # build a shell-replayable command line
 
-clip() {
-    xclip -selection clipboard < "$1"
-    echo "copied to clipboard"
+  {
+    printf 'PWD: %s\n' "$PWD"
+    printf 'COMMAND: $ %s\n' "$cmd"
+    echo
+    eval "$cmd"              # re-parse → aliases expand
+  } | xclip -selection clipboard
 }
 
-cop() {
-	# echo "test"
-	xclip -selection-clipboard
+clip() {
+    if [[ -n "$1" ]]; then
+        cat "$1"
+    else
+        cat
+    fi | xclip -selection clipboard
 }
 
 p() {
@@ -230,3 +239,4 @@ unset __conda_setup
 export LESS='-j4'
 
 export PATH="$PATH:/var/lib/flatpak/exports/bin"
+export PATH="$HOME/.local/bin:$PATH"

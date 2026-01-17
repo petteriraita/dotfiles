@@ -3,6 +3,8 @@
 # CLI TOOLS
 alias ..='cd ..'                                    # Move up one directory level
 alias ...='cd ../..'                                # Move up two directory levels
+# making sudo work with aliases
+alias sudo='sudo '
 
 # Shell utilitiees
 alias ll="ls -lh"
@@ -13,6 +15,7 @@ alias lt="ls -lhtr"
 alias ld="ls -d */"
 
 
+alias c='xclip -selection clipboard'
 
 
 alias bsource='source ~/.bashrc'                     # Reload .bashrc to apply changes
