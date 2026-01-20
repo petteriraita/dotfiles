@@ -1,13 +1,24 @@
 " ================================================
 " Clipboard Integration Settings
 " ================================================
-" lskfjlakjf " 
+" If you need to test if this rc file is hit, then uncomment this below
+"echom "VIMRC HIT"
+
+" autocmd VimEnter * echoerr "VIMRC DEFINITELY LOADED"
+
 " Enable system CLIPBOARD integration
 set clipboard=unnamedplus
 
 " ================================================
 " General Settings
 " ================================================
+
+
+" Explicit cursor shapes (works in tmux + xterm-like terminals)
+if &term =~ "xterm\\|tmux"
+  let &t_SI = "\e[5 q"   " insert mode: beam
+  let &t_EI = "\e[1 q"   " normal mode: block
+endif
 
 
 augroup YankDeleteChangeToClipboard

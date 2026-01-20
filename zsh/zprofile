@@ -1,3 +1,4 @@
 # ~/.config/zsh/zprofile
-[[ -f ~/.config/zsh/zshrc ]] && source ~/.config/zsh/zshrc
+export DISPLAY 
+export XAUTHORITY 
 
