@@ -15,10 +15,15 @@ export PATH="/var/lib/flatpak/exports/bin:$PATH"
 
 
 
-
 cdf() {
   local dir
-  dir=$(fd -t d --hidden | fzf) || return
+  dir=$(fd -t f | fzf) || return
+  vim "$dir"
+}
+
+cdd() {
+  local dir
+  dir=$(fd -t d | fzf) || return
   cd "$dir"
 }
 

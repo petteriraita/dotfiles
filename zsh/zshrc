@@ -20,6 +20,11 @@ zmodload zsh/complist
 compinit
 _comp_options+=(globdots)		# Include hidden files.
 
+
+### making the man pages readable
+export LESS='-R --tabs=4'
+export MANPAGER='less -R --tabs=4'
+
 ### getting zoxide to work
 eval "$(zoxide init zsh)"
 # fzf integration for zsh (fzf >= 0.48.0)
