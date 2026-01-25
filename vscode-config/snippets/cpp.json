@@ -1,0 +1,30 @@
+{
+	"Show variable": {
+		"prefix": "cl",
+		"body": [
+			"std::cout << \"$1: \" << $1 << std::endl;"
+		],
+		"description": "Print variable with label"
+	},
+	"Print newline variable": {
+		"prefix": "clvn",
+		"body": [
+			"std::cout << \"$1:\\n\" << $1 << std::endl;"
+		],
+		"description": "Print variable with newline before value"
+	},
+	"Print type variable": {
+		"prefix": "clvt",
+		"body": [
+			"std::cout << \"type($1): \" << typeid($1).name() << std::endl;"
+		],
+		"description": "Print type of variable"
+	},
+	"Print variable": {
+		"prefix": "clv",
+		"body": [
+			"std::cout << \"$1: \" << $1 << std::endl;"
+		],
+		"description": "Print variable"
+	}
+}

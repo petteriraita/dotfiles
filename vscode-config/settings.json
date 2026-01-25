@@ -7,7 +7,6 @@
     "security.workspace.trust.untrustedFiles": "open",
     "explorer.confirmDragAndDrop": false,
     "workbench.startupEditor": "none",
-    "terminal.integrated.defaultProfile.windows": "Git Bash",
     "files.exclude": {
         "**/._*": true
     },
@@ -150,6 +149,15 @@
     "python.analysis.searchPaths": [
         "/home/petteriraita/miniconda3/envs/generalp/lib/python3.10"
     ],
+    // make the vs code use tmux as the default terminal
+    "terminal.integrated.defaultProfile.linux": "tmux",
+    "terminal.integrated.profiles.linux": {
+        "tmux": {
+            "path": "tmux",
+            "args": []
+        }
+    },
+
     "python.createEnvironment.trigger": "off"
     // ... other settings
 

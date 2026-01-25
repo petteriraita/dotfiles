@@ -14,16 +14,33 @@ export PATH="$HOME/.local/bin:$PATH"
 export PATH="/var/lib/flatpak/exports/bin:$PATH"
 
 
+cdfv() {
+  local file
+  file=$(fzf --bind "change:reload:fd -t f {q} /" \
+             --preview "bat --style=numbers --color=always {}" \
+             --phony \
+             --query "") || return
+  vim "$file"
+}
+
+cdfp() {
+  local file
+  file=$(fzf --bind "change:reload:fd -t f {q} /" \
+             --preview "bat --style=numbers --color=always {}" \
+             --phony \
+             --query "") || return
+  echo "$file"
+}
 
 cdf() {
   local dir
-  dir=$(fd -t f | fzf) || return
+  dir=$(fd -t f . /home | fzf) || return
   vim "$dir"
 }
 
 cdd() {
   local dir
-  dir=$(fd -t d | fzf) || return
+  dir=$(fd -t d . /home | fzf) || return
   cd "$dir"
 }
 
@@ -43,7 +60,13 @@ md2pdf() {
 }
 
 x() {
-	xdg-open "${2:-.}" > /dev/null 2>&1
+	case $# in
+		# 0) echo "got the input of 0 args" ;;
+		# 1) echo "got the input of 1 args" ;;
+		0) xdg-open "$PWD" > /dev/null 2>&1 & disown ;;
+		1) xdg-open "$1" > /dev/null 2>&1 & disown ;;
+		*) echo "wrong number >= 2 arguments provided to function x"
+	esac
 }
 # activate the py310 conda environment (c a p  )
 cap() {
@@ -88,6 +111,7 @@ alias ld="ls -d */"
 
 
 alias c='xclip -selection clipboard'
+alias v='vimx'
 
 
 alias zsource='source /home/pt/.config/zsh/zshrc'                     # Reload .bashrc to apply changes
