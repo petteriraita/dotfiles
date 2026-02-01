@@ -197,6 +197,8 @@ bar {
 }
 # make a terminal start 
 bindsym $mod+Return exec kitty --session ~/.config/kitty/tmux.session
+bindsym $mod+Shift+Return exec kitty
+
 
 ### my audio
 # $mod + F-keys for volume (firmware-independent)

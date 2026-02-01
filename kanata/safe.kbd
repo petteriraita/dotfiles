@@ -1,0 +1,55 @@
+(defcfg
+  linux-dev-names-include ( "Logitech PRO Gaming Keyboard" "AT Translated Set 2 keyboard" 
+    "Telink Wireless Receiver" )
+  ;; the previous version:
+  ;; linux-dev /dev/input/by-path/platform-i8042-serio-0-event-kbd
+  linux-output-device-name kanata
+  linux-output-device-bus-type USB
+  process-unmapped-keys yes
+  concurrent-tap-hold yes
+  ;; disabling OS key repeat
+  linux-x11-repeat-delay-rate 9999,1
+)
+
+;; Variables
+(defvar
+  tap-time 350
+  hold-time 250
+  hold-time-pinky 1100
+)
+
+(defsrc
+  caps a s d f j k l ;
+  z x c v b n m , . ralt
+)
+
+(defalias
+  ;; ── modifiers / special ─────────────────────────────
+  caps  (tap-hold-press $tap-time $hold-time esc lctl)
+  f     (tap-hold-press $tap-time $hold-time f lctl)
+  j     (tap-hold-press $tap-time $hold-time j rctl)
+  c     (tap-hold-press $tap-time $hold-time-pinky c lsft)
+  comma (tap-hold-press $tap-time $hold-time-pinky , rsft)
+  semi  (tap-hold-press $tap-time $hold-time-pinky ; lmet)
+  ralt  (tap-hold-press $tap-time $hold-time bspc ralt)
+
+  ;; ── identity aliases (boring, but critical) ─────────
+  a a
+  s s
+  d d
+  k k
+  l l
+  z z
+  x x
+  v v
+  b b
+  n n
+  m m
+  dot .
+)
+
+(deflayer base
+  @caps @a @s @d @f @j @k @l @semi
+  @z @x @c @v @b @n @m @comma @dot @ralt
+)
+

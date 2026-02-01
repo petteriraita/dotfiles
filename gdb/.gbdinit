@@ -1,0 +1,9 @@
+set pagination off
+set print pretty on
+set debuginfod enabled off
+set complaints 0
+set verbose off
+set confirm off
+
+
+

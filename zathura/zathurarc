@@ -1,0 +1,3 @@
+set selection-clipboard clipboard
+map <C-y> feedkeys ":exec bash -c \"printf \\\"$FILE\\\" | xclip -selection clipboard\""<Return>
+

@@ -2,34 +2,91 @@
 set -euo pipefail
 
 INTERNAL="eDP-1"
-# you could also use jq and use actual_dp here for in case the connection does not work perfect
-EXTERNAL="$(xrandr | awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}' || true)"
+STATE_FILE="/tmp/display_state"
 
-if [[ -z "$EXTERNAL" ]]; then
-	# mobile geometry
-	safenotify.sh "DISPLAY CONNECTION: switching display to mobile" 
-	
-	# disabling the other connected and disconnected displays
-	for out in $(xrandr | awk '/ connected| disconnected/ {print $1}'); do
-	    [[ "$out" != "$INTERNAL" ]] && xrandr --output "$out" --off
-	done
-	    xrandr --output "$INTERNAL" --auto --primary
-	    for i in {1..9}; do
-		i3-msg "workspace $i; move workspace to output $INTERNAL" >/dev/null
-	done
-	xrandr --output "$INTERNAL" --auto --primary --pos 0x0
-	xrandr --fb 1920x1200
+safenotify.sh "the postswitch runs!!"
+safenotify.sh "previous_state file status before running $(cat "$STATE_FILE")"
 
+check_if_only_charging_cable() {
+	safenotify.sh "DISPLAY CONNECTION: charger function called"
+
+	sleep 0.5
+
+	# current state 0 means only internal monitor
+	current_state=0
+	safenotify.sh "previous_state file status after running $(cat "$STATE_FILE")"
+
+	# loop through every single possible DP-card
+	for s in /sys/class/drm/card*-*/status; do
+		# check if the status is connected. check if the whole line is "connected". nothing else will match
+		if grep -qx connected "$s"; then
+			safenotify.sh "cards_connected: ${s}"
+			# exclude the edp-1 from the external monitors
+			if [[ "$s" != *"$INTERNAL"* ]]; then
+				# current state 1 means connected to an external monitor
+				current_state=1
+			fi
+		fi
+	done
+
+	previous_state=$(cat "$STATE_FILE" 2>/dev/null || echo "unset")
+
+	if [[ "$current_state" == "$previous_state" ]]; then
+		safenotify.sh "DISPLAY CONNECTION: current_state = $current_state"
+		safenotify.sh "DISPLAY CONNECTION: previous_state = $previous_state"
+
+		safenotify.sh "DISPLAY CONNECTION: charger added - no action"
+		return 0
+	fi
+
+	echo "$current_state" >"$STATE_FILE"
+	return 1
+}
+
+switch_monitors() {
+	# you could also use jq and use actual_dp here for in case the connection does not work perfect
+	# the reason actual_dp is used in the first place is because the DP-3 etc, might show up as connected in xrandr, even though they are not actually connected
+	# there is basically 3 levels. the DRM, xrandr, i3. they should all say that the thing is connected. maybe this leads to some race conditions and I should better experiment that which of them is lagging the others
+	EXTERNAL="$(xrandr | awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}' || true)"
+
+	if [[ -z "$EXTERNAL" ]]; then
+		# mobile geometry
+		safenotify.sh "DISPLAY CONNECTION: switching display to mobile"
+
+		# disabling the other connected and disconnected displays
+		for out in $(xrandr | awk '/ connected| disconnected/ {print $1}'); do
+			[[ "$out" != "$INTERNAL" ]] && xrandr --output "$out" --off
+		done
+		xrandr --output "$INTERNAL" --auto --primary
+		for i in {1..9}; do
+			i3-msg "workspace $i; move workspace to output $INTERNAL" >/dev/null
+		done
+		xrandr --output "$INTERNAL" --auto --primary --pos 0x0
+		xrandr --fb 1920x1200
+
+	else
+		# giving i3 time to change the geometry to the docked status
+		for _ in {1..10}; do
+			actual_dp=$(i3-msg -t get_outputs | jq -r '.[] | select(.active == true and .name != "'"$INTERNAL"'") | .name')
+			[[ -n "$actual_dp" ]] && break
+			sleep 0.2
+		done
+
+		safenotify.sh "DISPLAY CONNECTION: switching display to EXTERNAL = $EXTERNAL"
+		# docked geometry
+		xrandr --output "$EXTERNAL" --auto --above "$INTERNAL"
+		xrandr --output "$INTERNAL" --auto --primary
+		for i in {1..8}; do
+			i3-msg "workspace $i; move workspace to output $actual_dp" >/dev/null
+		done
+		i3-msg "workspace 9; move workspace to output $INTERNAL" >/dev/null
+	fi
+}
+
+## if the charging check returns true, dont do anything
+if check_if_only_charging_cable; then
+	## exit successfully without doing anything
+	exit 0
 else
-	actual_dp=$(i3-msg -t get_outputs | jq -r '.[] | select(.active == true and .name != "eDP-1") | .name')
-
-safenotify.sh "DISPLAY CONNECTION: switching display to EXTERNAL = $EXTERNAL" 
-    # docked geometry
-    xrandr --output "$EXTERNAL" --auto --above "$INTERNAL"
-    xrandr --output "$INTERNAL" --auto --primary
-    for i in {1..8}; do
-        i3-msg "workspace $i; move workspace to output $actual_dp" >/dev/null
-    done
-    i3-msg "workspace 9; move workspace to output $INTERNAL" >/dev/null
+	switch_monitors
 fi
-
