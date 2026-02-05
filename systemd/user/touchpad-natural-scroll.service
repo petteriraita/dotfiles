@@ -1,0 +1,11 @@
+[Unit]
+Description=Reassert libinput Natural Scrolling
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" "libinput Natural Scrolling Enabled" 1
+
+[Install]
+WantedBy=graphical-session.target
+

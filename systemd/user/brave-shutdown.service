@@ -1,0 +1,13 @@
+[Unit]
+Description=Gracefully terminate Brave before graphical session teardown
+Before=graphical-session.target
+DefaultDependencies=no
+Conflicts=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/bash -c 'pkill -TERM brave || true; while pgrep brave >/dev/null; do sleep 0.2; done'
+TimeoutSec=15
+
+[Install]
+WantedBy=graphical-session.target

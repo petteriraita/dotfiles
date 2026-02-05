@@ -1,8 +1,10 @@
 (defcfg
-  linux-dev-names-include ( "Logitech PRO Gaming Keyboard" "AT Translated Set 2 keyboard" 
-    "Telink Wireless Receiver" )
-  ;; the previous version:
-  ;; linux-dev /dev/input/by-path/platform-i8042-serio-0-event-kbd
+  linux-dev-names-include (
+    "Logitech PRO Gaming Keyboard"
+    "AT Translated Set 2 keyboard"
+    "Telink Wireless Receiver"
+  )
+  ;; the previous version: linux-dev /dev/input/by-path/platform-i8042-serio-0-event-kbd
   linux-output-device-name kanata
   linux-output-device-bus-type USB
   process-unmapped-keys yes
@@ -11,45 +13,57 @@
   linux-x11-repeat-delay-rate 9999,1
 )
 
+
 ;; Variables
 (defvar
-  tap-time 350
-  hold-time 250
-  hold-time-pinky 1100
+;; The key must be pressed twice in 200ms to enable repetitions. 
+tap_timeout 200 
+;; The key must be held 200ms to become a layer shift. 
+hold_timeout 200 
+;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
+long_hold_timeout 300
+ left-hand-keys ( q w e r t a s d f g z x c v b ) 
+ right-hand-keys ( y u i o p h j k l ; n m , . / )
 )
-
 (defsrc
   caps a s d f j k l ;
-  z x c v b n m , . ralt
+  z x c v b n m , .
+ 	ralt
 )
+;; this is supposed to work as to disable the same hand mod keys from being pressed accidentally
 
 (defalias
   ;; ── modifiers / special ─────────────────────────────
-  caps  (tap-hold-press $tap-time $hold-time esc lctl)
-  f     (tap-hold-press $tap-time $hold-time f lctl)
-  j     (tap-hold-press $tap-time $hold-time j rctl)
-  c     (tap-hold-press $tap-time $hold-time-pinky c lsft)
-  comma (tap-hold-press $tap-time $hold-time-pinky , rsft)
-  semi  (tap-hold-press $tap-time $hold-time-pinky ; lmet)
-  ralt  (tap-hold-press $tap-time $hold-time bspc ralt)
+  ;; left hand
+  caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys)
+  f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys)
+  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys)
+
+  ;; right hand
+  j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys)
+  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys)
+  semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys)
+  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout bspc ralt $right-hand-keys)
 
   ;; ── identity aliases (boring, but critical) ─────────
-  a a
-  s s
-  d d
-  k k
-  l l
-  z z
-  x x
-  v v
-  b b
-  n n
-  m m
-  dot .
+  a     a
+  s     s
+  d     d
+  k     k
+  l     l
+
+  z     z
+  x     x
+  v     v
+  b     b
+  n     n
+  m     m
+  dot   .
 )
+
 
 (deflayer base
   @caps @a @s @d @f @j @k @l @semi
-  @z @x @c @v @b @n @m @comma @dot @ralt
+  @z    @x @c @v @b @n @m @comma @dot
+  @ralt
 )
-

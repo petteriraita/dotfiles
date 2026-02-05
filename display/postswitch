@@ -45,8 +45,7 @@ check_if_only_charging_cable() {
 
 switch_monitors() {
 	# you could also use jq and use actual_dp here for in case the connection does not work perfect
-	# the reason actual_dp is used in the first place is because the DP-3 etc, might show up as connected in xrandr, even though they are not actually connected
-	# there is basically 3 levels. the DRM, xrandr, i3. they should all say that the thing is connected. maybe this leads to some race conditions and I should better experiment that which of them is lagging the others
+	# the reason actual_dp is used in the first place is because the DP-3 etc, might how
 	EXTERNAL="$(xrandr | awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}' || true)"
 
 	if [[ -z "$EXTERNAL" ]]; then

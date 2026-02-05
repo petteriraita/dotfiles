@@ -22,8 +22,8 @@ tap_timeout 200
 hold_timeout 200 
 ;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
 long_hold_timeout 300
- left-hand-keys ( q w e r t a s d f g z x c v b ) 
- right-hand-keys ( y u i o p h j k l ; n m , . / )
+left-hand-keys-no-mods  ( q w e r t s d g z x v b )
+right-hand-keys-no-mods ( y u i o p h k l n m . / )
 )
 (defsrc
   caps a s d f j k l ;
@@ -35,18 +35,18 @@ long_hold_timeout 300
 (defalias
   ;; ── modifiers / special ─────────────────────────────
   ;; left hand
-  caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys)
-  f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys)
-  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys)
+  caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys-no-mods)
+  f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys-no-mods)
+  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys-no-mods)
+  a  (tap-hold-release-keys $tap_timeout $long_hold_timeout a lmet $left-hand-keys-no-mods)
 
   ;; right hand
-  j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys)
-  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys)
-  semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys)
-  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout bspc ralt $right-hand-keys)
+  j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys-no-mods)
+  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys-no-mods)
+  semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
+  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout bspc ralt $right-hand-keys-no-mods)
 
   ;; ── identity aliases (boring, but critical) ─────────
-  a     a
   s     s
   d     d
   k     k

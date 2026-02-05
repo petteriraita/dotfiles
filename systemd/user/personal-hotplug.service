@@ -1,0 +1,12 @@
+[Unit]
+Description=display hotplug handler
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=oneshot
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%h/.Xauthority
+ExecStart=%h/.config/display/postswitch
+
+

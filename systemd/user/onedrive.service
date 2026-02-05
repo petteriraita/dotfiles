@@ -1,0 +1,15 @@
+[Unit]
+Description=OneDrive Upload-Only Sync
+After=network-online.target
+
+[Service]
+ExecStart=/usr/bin/onedrive --monitor --upload-only
+KillMode=process
+Restart=on-failure
+RestartSec=60
+StartLimitIntervalSec=600
+StartLimitBurst=3
+
+[Install]
+WantedBy=default.target
+
