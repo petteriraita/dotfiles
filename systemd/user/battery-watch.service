@@ -1,0 +1,9 @@
+[Unit]
+Description=Battery Watcher
+
+[Service]
+ExecStart=/home/pt/.local/bin/battery-watch.sh
+Restart=always
+
+[Install]
+WantedBy=default.target

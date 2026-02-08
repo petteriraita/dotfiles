@@ -1,0 +1,47 @@
+{
+	"print variable": {
+		"prefix": "cl",
+		"body": [
+			"print(\"$1\", $1)"
+		],
+		"description": "Log output to console"
+	},
+	"print newline variable": {
+		"prefix": "clvn",
+		"body": [
+			"print(f\"$1:\\n {$1}\")"
+		],
+		"description": "Log output to console"
+	},
+	"Print type variable": {
+		"prefix": "clvt",
+		"body": [
+			"print(f\"type($1): {type($1)}\")"
+		],
+		"description": "Log output to console"
+	},
+	"test": {
+		"prefix": "test",
+		"body": [
+			"snippet works"
+		],
+		"description": "test snippet"
+	},
+	"DPrint variable": {
+		"prefix": "dclv",
+		"body": [
+			"print(f\"$1: {$1}\", 
+			file=sys.stderr,
+			flush=True)"
+		],
+		"description": "Log output to console"
+	},
+
+	"Print variable": {
+		"prefix": "clv",
+		"body": [
+			"print(f\"$1: {$1}\")"
+		],
+		"description": "Log output to console"
+	}
+}

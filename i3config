@@ -251,3 +251,8 @@ floating_modifier Mod1
 bindsym --whole-window button6 nop
 bindsym --whole-window button7 nop
 
+
+### bind a key for the keepass
+bindsym $mod+p exec --no-startup-id keepassxc
+
+

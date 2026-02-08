@@ -1,0 +1,243 @@
+{  
+  "Fraction": {
+    "prefix": "fr",
+    "body": "\\frac{${1:1}}{${2:2}}"
+  },
+  "Partial Derivative": {
+    "prefix": "pd",
+    "body": "\\frac{\\partial ${1:f}}{\\partial ${2:x}}"
+  },
+  "Norm": {
+  "prefix": "nn",
+  "body": "\\| ${1:x} \\|_{${2:2}}"
+  },
+
+  "Equation": {
+  "prefix": "eq",
+  "body": "\\begin{equation}\n  ${1}\n  \\label{${2:eq}}\n\\end{equation}"
+  },
+
+  "cases": {
+  "prefix": "ca",
+  "body": "\\begin{cases}\n  ${1}\n\\end{cases}"
+  },
+
+  "Multiplication": {
+    "prefix": "x",
+    "body": "\\cdot $0"
+  },
+  "Derivative": {
+    "prefix": "dd",
+    "body": "\\frac{d${1:f}}{d${2:x}}"
+  },
+  "Inline Math": {
+    "prefix": "im",
+    "body": "\\( ${1} \\)"
+  },
+  "Displayed Math": {
+    "prefix": "dm",
+    "body": "\\[\n  ${1}\n\\]"
+  },
+  "Strict Subset": {
+  "prefix": "sss",
+  "body": "\\subset $0"
+},
+"Subset": {
+  "prefix": "ss",
+  "body": "\\subseteq $0"
+},
+"mod": {
+  "prefix": "m",
+  "body": "\\bmod $0"
+},
+"bar": {
+  "prefix": "b",
+  "body": "\\bar{$0}"
+},
+
+
+  "Sum": {
+    "prefix": "su",
+    "body": "\\sum_{${1:i}=1}^{${2:n}} ${3}"
+  },
+  "Integral": {
+    "prefix": "int",
+    "body": "\\int_{${1:a}}^{${2:b}} ${3}"
+  },
+  "Limit": {
+    "prefix": "lim",
+    "body": "\\lim_{${1:x}\\to${2:0}} ${3}"
+  },
+  "Vector": {
+    "prefix": "vv",
+    "body": "\\vec{${1:v}}"
+  },
+  "Hat": {
+    "prefix": "hh",
+    "body": "\\hat{${1:x}}"
+  },
+  "Overline": {
+  "prefix": "ov",
+  "body": "\\overline{${1:x}}"
+  },
+  "Set Union": {
+  "prefix": "u",
+  "body": "\\cup $0"
+},
+"Set Intersection": {
+  "prefix": "n",
+  "body": "\\cap $0"
+},
+"Empty Set": {
+  "prefix": "emp",
+  "body": "\\emptyset"
+},
+
+
+
+
+  "Align": {
+    "prefix": "al",
+    "body": "\\begin{align}\n  ${1}\n\\end{align}"
+  },
+  "Itemize": {
+    "prefix": "it",
+    "body": "\\begin{itemize}\n  \\item ${1}\n\\end{itemize}"
+  },
+  "Enumerate": {
+    "prefix": "en",
+    "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
+  },
+  "answerbox": {
+    "prefix": "an",
+    "body": "\\begin{answerbox}\n${1}\n\\end{answerbox}"
+  },
+  "Figure": {
+    "prefix": "fig",
+    "body": "\\begin{figure}[h]\n  \\centering\n  \\includegraphics[width=${1:\\linewidth}]{${2:path}}\n  \\caption{${3:caption}}\n  \\label{fig:${4:label}}\n\\end{figure}"
+  },
+
+  "Bold Math": {
+    "prefix": "bb",
+    "body": "\\mathbb{${1:x}}"
+  },
+  "Calligraphic": {
+    "prefix": "cc",
+    "body": "\\mathcal{${1:A}}"
+  },
+  "Expectation": {
+    "prefix": "ee",
+    "body": "\\mathbb{E}[${1:X}]"
+  },
+  "infty": {
+    "prefix": "inf",
+    "body": "\\infty"
+  },
+  "Probability": {
+    "prefix": "pp",
+    "body": "\\mathbb{P}(${1:A})"
+  },
+  "boolean t": {
+    "prefix": "T",
+    "body": "TRUE"
+  },
+  "boolean f": {
+    "prefix": "F",
+    "body": "FALSE"
+  },
+"bitstring crypto": {
+  "prefix": "bi",
+  "body": "\\\\{0,1\\\\}"
+} ,
+
+"braces": {
+  "prefix": "bra",
+  "body": "\\\\{${1}\\\\}"
+} ,
+  "problem in chp": {
+    "prefix": "pr",
+    "body": "\\textsc{${1}}"
+  },
+  "word in chp": {
+    "prefix": "w",
+    "body": "\\word{${1}}"
+  },
+
+  "Section": {
+    "prefix": "sec",
+    "body": "\\section{$0}"
+  },
+  "Subsection": {
+    "prefix": "sub",
+    "body": "\\subsection{$0}"
+  },
+  "Label": {
+    "prefix": "lb",
+    "body": "\\label{${1:label}}"
+  },
+  "Ref": {
+    "prefix": "rf",
+    "body": "\\ref{${1:label}}"
+  },
+  "Cite": {
+    "prefix": "ct",
+    "body": "\\cite{${1:key}}"
+  },
+  "Bold Text": {
+    "prefix": "bf",
+    "body": "\\textbf{${1}}"
+  },
+  "Math Text": {
+    "prefix": "tx",
+    "body": "\\text{${1}}$0"
+  },
+  "Greek alpha": { "prefix": ";a", "body": "\\alpha" },
+  "Greek beta": { "prefix": ";b", "body": "\\beta" },
+  "Greek gamma": { "prefix": ";g", "body": "\\gamma" },
+  "Greek delta": { "prefix": ";d", "body": "\\delta" },
+  "Greek epsilon": { "prefix": ";e", "body": "\\epsilon" },
+  "Greek zeta": { "prefix": ";z", "body": "\\zeta" },
+  "Greek eta": { "prefix": ";h", "body": "\\eta" },
+  "Greek theta": { "prefix": ";t", "body": "\\theta" },
+  "Greek iota": { "prefix": ";i", "body": "\\iota" },
+  "Greek kappa": { "prefix": ";k", "body": "\\kappa" },
+  "Greek lambda": { "prefix": ";l", "body": "\\lambda" },
+  "Greek mu": { "prefix": ";m", "body": "\\mu" },
+  "Greek nu": { "prefix": ";n", "body": "\\nu" },
+  "Greek xi": { "prefix": ";x", "body": "\\xi" },
+  "Greek omicron": { "prefix": ";o", "body": "\\omicron" },
+  "Greek pi": { "prefix": ";p", "body": "\\pi" },
+  "Greek rho": { "prefix": ";r", "body": "\\rho" },
+  "Greek sigma": { "prefix": ";s", "body": "\\sigma" },
+  "Greek tau": { "prefix": ";u", "body": "\\tau" },
+  "Greek upsilon": { "prefix": ";y", "body": "\\upsilon" },
+  "Greek phi": { "prefix": ";f", "body": "\\phi" },
+  "Greek chi": { "prefix": ";c", "body": "\\chi" },
+  "Greek psi": { "prefix": ";ps", "body": "\\psi" },
+  "Greek omega": { "prefix": ";w", "body": "\\omega" },
+"Greek Alpha":   { "prefix": ";A",  "body": "\\Alpha" },
+"Greek Beta":    { "prefix": ";B",  "body": "\\Beta" },
+"Greek Gamma":   { "prefix": ";G",  "body": "\\Gamma" },
+"Greek Delta":   { "prefix": ";D",  "body": "\\Delta" },
+"Greek Epsilon": { "prefix": ";E",  "body": "\\Epsilon" },
+"Greek Zeta":    { "prefix": ";Z",  "body": "\\Zeta" },
+"Greek Eta":     { "prefix": ";H",  "body": "\\Eta" },
+"Greek Theta":   { "prefix": ";T",  "body": "\\Theta" },
+"Greek Iota":    { "prefix": ";I",  "body": "\\Iota" },
+"Greek Kappa":   { "prefix": ";K",  "body": "\\Kappa" },
+"Greek Lambda":  { "prefix": ";L",  "body": "\\Lambda" },
+"Greek Mu":      { "prefix": ";M",  "body": "\\Mu" },
+"Greek Nu":      { "prefix": ";N",  "body": "\\Nu" },
+"Greek Xi":      { "prefix": ";X",  "body": "\\Xi" },
+"Greek Omicron": { "prefix": ";O",  "body": "\\Omicron" },
+"Greek Pi":      { "prefix": ";P",  "body": "\\Pi" },
+"Greek Rho":     { "prefix": ";R",  "body": "\\Rho" },
+"Greek Sigma":   { "prefix": ";S",  "body": "\\Sigma" },
+"Greek Tau":     { "prefix": ";U",  "body": "\\Tau" },
+"Greek Upsilon": { "prefix": ";Y",  "body": "\\Upsilon" },
+"Greek Phi":     { "prefix": ";F",  "body": "\\Phi" },
+"Greek Chi":     { "prefix": ";C",  "body": "\\Chi" },
+"Greek Psi":     { "prefix": ";PS", "body": "\\Psi" },
+"Greek Omega":   { "prefix": ";W",  "body": "\\Omega" }
+
+}
