@@ -23,7 +23,7 @@ hold_timeout 200
 ;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
 long_hold_timeout 300
 left-hand-keys-no-mods  ( q w e r t s d g z x v b )
-right-hand-keys-no-mods ( y u i o p h k l n m . / )
+right-hand-keys-no-mods ( y u i o h k l n m . / )
 )
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
@@ -56,6 +56,7 @@ caps  a    s    d    f    g         h    j    k    l    ;
   j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys-no-mods)
   comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys-no-mods)
   semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
+  p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
 
   ;; ── identity aliases (boring, but critical) ─────────
   s     s
@@ -86,7 +87,7 @@ caps  a    s    d    f    g         h    j    k    l    ;
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer base
   1    2    3    4    5    6    7    8    9    0
-  q    w    e    r    t         y    u    i    o    p
+  q    w    e    r    t         y    u    i    o    @p
   @caps @a   @s   @d   @f   g         h    @j   @k   @l   @semi
   @z    @x   @c   @v   @b     @n   @m   @comma @dot  /
           @lalt          @nav           @ralt
@@ -95,7 +96,7 @@ caps  a    s    d    f    g         h    j    k    l    ;
 
 (deflayer navigation
     XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
-    XX   XX   XX   XX   XX        home pgdn pgup end   XX
+    XX   XX   XX   XX   XX        home pgdn pgup end   _
  _ @all   @cpy @pst  _    XX        lft  down up   rght XX
     @ndo   XX   _   XX    XX        XX   XX   XX   XX   XX
               _            _            _
