@@ -6,8 +6,8 @@ source ~/.config/zsh/zshrc-extra.zsh
 
 # Enable colors and change prompt:
 autoload -U colors && colors
-PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
-
+## previous lukes prompt with the server name: PS1="%B%{$fg[red]%}[%{$fg[yellow]%}%n%{$fg[green]%}@%{$fg[blue]%}%M %{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
+PS1="%B%{$fg[red]%}[%{$fg[magenta]%}%~%{$fg[red]%}]%{$reset_color%}$%b "
 # History in cache directory:
 HISTSIZE=10000
 SAVEHIST=10000
@@ -42,6 +42,18 @@ bindkey -M menuselect 'j' vi-down-line-or-history
 bindkey -v '^?' backward-delete-char
 # use the alt . to put old words back
 bindkey -M viins '^[.' insert-last-word
+
+## make visual-mode yank copy to X11 clipboard
+autoload -Uz copy-region-as-kill
+zle -N yank-to-clipboard
+
+yank-to-clipboard() {
+  zle copy-region-as-kill
+  print -rn -- "$CUTBUFFER" | xclip -selection clipboard
+}
+
+bindkey -M vicmd 'y' yank-to-clipboard
+bindkey -M visual 'y' yank-to-clipboard
 
 
 # Change cursor shape for different vi modes.

@@ -190,6 +190,12 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 -- or just use <C-\><C-n> to exit terminal mode
 vim.keymap.set('t', '<Esc><Esc>', '<C-\\><C-n>', { desc = 'Exit terminal mode' })
 
+-- Petteri own keymaps:
+-- make leader cp copy the path of the current file to clipboard
+vim.keymap.set('n', '<leader>cp', function()
+  vim.fn.setreg('+', vim.fn.expand '%:p')
+end, { desc = 'copy file path' })
+
 -- TIP: Disable arrow keys in normal mode
 -- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
 -- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
@@ -247,6 +253,13 @@ vim.filetype.add {
   },
 }
 
+-- Petteri add the way to fomrat leetcode problems
+vim.api.nvim_create_user_command('Leetformat', function(opts)
+  local range = opts.line1 .. ',' .. opts.line2
+  vim.cmd(range .. 's/\\[/\\{/g')
+  vim.cmd(range .. 's/\\]/\\}/g')
+  vim.cmd(range .. 's/"/\'/g')
+end, { range = true })
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -292,17 +305,43 @@ require('lazy').setup({
     'lervag/vimtex',
     ft = { 'tex', 'bib' },
     init = function()
+      -- Adding these things that make latex render on screen while editing
+      vim.g.vimtex_syntax_conceal = {
+        accents = 1,
+        ligatures = 1,
+        cites = 1,
+        fancy = 1,
+        spacing = 1,
+        greek = 1,
+        math_bounds = 1,
+        math_delimiters = 1,
+        math_fracs = 1,
+        math_super_sub = 1,
+        math_symbols = 1,
+        sections = 1,
+        styles = 1,
+      }
+      vim.opt.conceallevel = 2
       -- Zathura viewer
       vim.g.vimtex_view_method = 'zathura'
       -- Keep VimTeX on latexmk (default), but make sure SyncTeX is on:
       vim.g.vimtex_compiler_latexmk = {
         options = {
+          '-lualatex',
           '-pdf',
           '-interaction=nonstopmode',
           '-synctex=1',
           '-file-line-error',
         },
       }
+      vim.g.vimtex_quickfix_ignore_filters = {
+        'Overfull \\hbox',
+        'Underfull \\hbox',
+        'Overfull \\vbox',
+        'Underfull \\vbox',
+      }
+
+      vim.g.vimtex_quickfix_mode = 0
     end,
   },
 
@@ -863,9 +902,20 @@ require('lazy').setup({
           -- },
         },
         opts = {},
+        -- Petteri, here is the function that I added to
         config = function()
+          local ls = require 'luasnip'
+
+          ls.config.set_config {
+            enable_autosnippets = true,
+          }
+
           require('luasnip.loaders.from_vscode').lazy_load {
-            paths = { '/home/pt/.config/nvim/snippets' },
+            paths = { vim.fn.stdpath 'config' .. '/snippets' },
+          }
+
+          require('luasnip.loaders.from_lua').lazy_load {
+            paths = { vim.fn.stdpath 'config' .. '/lua/snippets' },
           }
         end,
       },
