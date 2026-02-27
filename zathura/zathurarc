@@ -1,3 +1,15 @@
 set selection-clipboard clipboard
 map <C-y> feedkeys ":exec bash -c \"printf \\\"$FILE\\\" | xclip -selection clipboard\""<Return>
 
+
+map [normal]     i zoom in
+map [normal]     o zoom out
+map [fullscreen] i zoom in
+map [fullscreen] o zoom out
+
+map [normal] u scroll half-up
+map [normal] d scroll half-down
+map D toggle_page_mode
+map [normal] H adjust_window best-fit
+map [normal] W adjust_window width
+

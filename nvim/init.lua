@@ -182,6 +182,12 @@ vim.keymap.set('n', '<Esc>', '<cmd>nohlsearch<CR>')
 -- Diagnostic keymaps
 vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagnostic [Q]uickfix list' })
 
+-- Petteri, add the comment key keymaps
+vim.keymap.set('n', '<C-_>', 'gcc', { remap = true })
+vim.keymap.set('v', '<C-_>', 'gc', { remap = true })
+-- set an insert mode remap also
+vim.keymap.set('i', '<C-_>', '<C-\\><C-o>gcc<C-o>A', { remap = true })
+
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
 -- is not what someone will guess without a bit more experience.
@@ -252,6 +258,14 @@ vim.filetype.add {
     thy = 'isabelle',
   },
 }
+-- add the file type tex, and make it so that wrapping is word, not byte based
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'tex',
+  callback = function()
+    vim.opt_local.wrap = true
+    vim.opt_local.linebreak = true
+  end,
+})
 
 -- Petteri add the way to fomrat leetcode problems
 vim.api.nvim_create_user_command('Leetformat', function(opts)
@@ -343,6 +357,55 @@ require('lazy').setup({
 
       vim.g.vimtex_quickfix_mode = 0
     end,
+  },
+  -- Petteri, add the comment plugin
+  {
+    'numToStr/Comment.nvim',
+    config = function()
+      require('Comment').setup()
+
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'fsharp',
+        callback = function()
+          vim.bo.commentstring = '// %s'
+        end,
+      })
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'isabelle',
+        callback = function()
+          vim.bo.commentstring = '(* %s *)'
+        end,
+      })
+    end,
+  },
+  -- Petteri, add the isabelle plugin
+  {
+    'Treeniks/isabelle-lsp.nvim',
+    config = function()
+      require('isabelle-lsp').setup {
+        -- adding this line to make sure this syntax highlighting only happens for isabelle files
+        ft = 'isabelle',
+        unicode_symbols_output = true,
+        unicode_symbols_edits = true,
+        auto_open_output = false,
+        auto_open_progress = false,
+        hl_group_map = {
+          ['text_keyword1'] = 'Keyword',
+          ['text_keyword2'] = 'Keyword',
+          ['text_keyword3'] = 'Keyword',
+          ['text_operator'] = 'Operator',
+          ['text_var'] = 'Function',
+          ['text_bound'] = 'Identifier',
+          ['text_tvar'] = 'Type',
+          ['text_tfree'] = 'Type',
+        },
+      }
+    end,
+  },
+  -- Petteri, add the isabelle syntax plugin
+  {
+    'ThreeFx/isabelle.vim',
+    ft = 'isabelle',
   },
 
   -- Here is a more advanced example where we pass configuration
@@ -787,6 +850,11 @@ require('lazy').setup({
             },
           },
         },
+        fsautocomplete = {
+          on_attach = function(client, bufnr)
+            client.server_capabilities.documentFormattingProvider = false
+          end,
+        },
       }
 
       -- Ensure the servers and tools above are installed
@@ -812,6 +880,7 @@ require('lazy').setup({
         ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
         automatic_installation = false,
         handlers = {
+          -- default handler
           function(server_name)
             local server = servers[server_name] or {}
             -- This handles overriding only values explicitly passed
@@ -822,6 +891,8 @@ require('lazy').setup({
           end,
         },
       }
+      -- Start Isabelle LSP manually (not managed by Mason)
+      vim.lsp.enable 'isabelle'
     end,
   },
 
@@ -845,7 +916,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true }
+        local disable_filetypes = { c = true, cpp = true, fsharp = true }
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         else

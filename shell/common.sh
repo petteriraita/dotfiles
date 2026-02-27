@@ -18,25 +18,38 @@ path=(
     $HOME/.cargo/bin
     $HOME/opt/Isabelle2025-2/bin
     $HOME/.npm-global/bin
+    $HOME/.dotnet/tools
     $path
 )
 
-cdfv() {
-    local file
-    file=$(fzf --bind "change:reload:fd -t f {q} /" \
-        --preview "bat --style=numbers --color=always {}" \
-        --phony \
-        --query "") || return
-    "$EDITOR" "$file"
+# cd into a file starting from root (R)
+cdr() {
+    local element
+    element=$(
+        fd -t f -t d . / 2>/dev/null |
+            fzf --preview 'bat --style=numbers --color=always {}'
+    ) || return
+
+    if [[ -d "$element" ]]; then
+        cd "$element"
+    else
+        cd "$(dirname "$element")"
+    fi
 }
 
-cdfp() {
-    local file
-    file=$(fzf --bind "change:reload:fd -t f {q} /" \
-        --preview "bat --style=numbers --color=always {}" \
-        --phony \
-        --query "") || return
-    echo "$file"
+# cd into a file starting from the local directory that you are in right now
+cdl() {
+    local element
+    element=$(
+        fd -t f -t d . . 2>/dev/null |
+            fzf --preview 'bat --style=numbers --color=always {}'
+    ) || return
+
+    if [[ -d "$element" ]]; then
+        cd "$element"
+    else
+        cd "$(dirname "$element")"
+    fi
 }
 
 balias() {
@@ -45,18 +58,6 @@ balias() {
 
 iconf() {
     "$EDITOR" ~/.config/i3/config
-}
-
-cdf() {
-    local dir
-    dir=$(fd -t f . /home | fzf) || return
-    "$EDITOR" "$dir"
-}
-
-cdd() {
-    local dir
-    dir=$(fd -t d . /home | fzf) || return
-    cd "$dir"
 }
 
 ag() {
@@ -96,6 +97,7 @@ x() {
     *) echo "wrong number >= 2 arguments provided to function x" ;;
     esac
 }
+
 # activate the py310 conda environment (c a p  )
 cap() {
     conda activate py310
@@ -151,14 +153,6 @@ alias calc='code /home/petteri/development_files/python_gre/calulator.ipynb'
 alias jpamb='code development_files/dtu/program_analysis/jpamb/'
 alias py='python3'
 
-# the JPAMB project
-alias ia="uv run framework/integrated_analysis.py"
-alias sa="uv run framework/static_analysis.py"
-
-alias night='redshift -O 1000'
-alias day='redshift -x'
-alias eve='redshift -O 2700'
-
 ## GIT
 alias gs='git status'
 alias ga='git add'
@@ -168,6 +162,5 @@ alias gb='git branch'
 alias gba='git branch -a'
 alias gr='git restore'
 
-alias xopen='xdg-open'
 alias copywd='pwd | xclip -selection clipboard'
 alias ch='code --reuse-window'
