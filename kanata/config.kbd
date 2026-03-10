@@ -49,12 +49,12 @@ caps  a    s    d    f    g         h    j    k    l    ;
   ;; left hand
   caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys-no-mods)
   f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys-no-mods)
-  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys-no-mods)
+  c     (tap-hold-release-keys $tap_timeout $hold_timeout c lsft $left-hand-keys-no-mods)
   a  (tap-hold-release-keys $tap_timeout $long_hold_timeout a lmet $left-hand-keys-no-mods)
 
   ;; right hand
   j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys-no-mods)
-  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys-no-mods)
+  comma (tap-hold-release-keys $tap_timeout $hold_timeout , rsft $right-hand-keys-no-mods)
   semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
   p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
 

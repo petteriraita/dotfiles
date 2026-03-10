@@ -239,6 +239,8 @@ bindsym $mod+Shift+F9 exec --no-startup-id sh -c 'mkdir -p ~/Pictures/Screenshot
 ## making the clipboard manager always on and floating
 for_window [class="copyq"] floating enable
 for_window [class="copyq"] border pixel 2
+for_window [class="copyq"] resize set 1000 700
+for_window [class="copyq"] move position center
 exec --no-startup-id copyq --start-server
 
 # Start gammastep in X11 (RANDR) mode with your config.ini

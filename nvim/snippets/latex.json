@@ -30,14 +30,6 @@
     "prefix": "dd",
     "body": "\\frac{d${1:f}}{d${2:x}}"
   },
-  "Inline Math": {
-    "prefix": "im",
-    "body": "\\( ${1} \\)"
-  },
-  "Displayed Math": {
-    "prefix": "dm",
-    "body": "\\[\n  ${1}\n\\]"
-  },
   "Strict Subset": {
   "prefix": "sss",
   "body": "\\subset $0"

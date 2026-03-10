@@ -22,31 +22,43 @@ tap_timeout 200
 hold_timeout 200 
 ;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
 long_hold_timeout 300
- left-hand-keys ( q w e r t a s d f g z x c v b ) 
- right-hand-keys ( y u i o p h j k l ; n m , . / )
+left-hand-keys-no-mods  ( q w e r t s d g z x v b )
+right-hand-keys-no-mods ( y u i o h k l n m . / )
 )
+
+;; 10, 10, 10 +1, 10, 3 ==> 44
 (defsrc
-  caps a s d f j k l ;
-  z x c v b n m , .
- 	ralt
+  1    2    3    4    5  6    7    8    9    0
+  q    w    e    r    t         y    u    i    o    p
+caps  a    s    d    f    g         h    j    k    l    ;
+  z    x    c    v    b       n    m    ,    .    /
+            lalt          spc             ralt
 )
 ;; this is supposed to work as to disable the same hand mod keys from being pressed accidentally
 
 (defalias
+ ;; Main mod-tap: Nav layer when held, Space when tapped.
+ nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
+
+  ;; Space-cadet thumb keys: Shift/BackSpace, AltGr/Enter.
+  ;; Acts as a modifier by default, or as BackSpace/Enter when tapped separately.
+  lalt (tap-hold-press $tap_timeout $hold_timeout bspc lsft)
+  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout ret ralt $right-hand-keys-no-mods)
+
   ;; ── modifiers / special ─────────────────────────────
   ;; left hand
-  caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys)
-  f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys)
-  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys)
+  caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys-no-mods)
+  f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys-no-mods)
+  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys-no-mods)
+  a  (tap-hold-release-keys $tap_timeout $long_hold_timeout a lmet $left-hand-keys-no-mods)
 
   ;; right hand
-  j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys)
-  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys)
-  semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys)
-  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout bspc ralt $right-hand-keys)
+  j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys-no-mods)
+  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys-no-mods)
+  semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
+  p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
 
   ;; ── identity aliases (boring, but critical) ─────────
-  a     a
   s     s
   d     d
   k     k
@@ -61,9 +73,31 @@ long_hold_timeout 300
   dot   .
 )
 
+;; Navigation layer
+(defalias
 
+  all C-a
+  sav C-s
+  cls C-w
+  ndo C-z
+  cut C-x
+  cpy C-c
+  pst C-v
+)
+;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer base
-  @caps @a @s @d @f @j @k @l @semi
-  @z    @x @c @v @b @n @m @comma @dot
-  @ralt
+  1    2    3    4    5    6    7    8    9    0
+  q    w    e    r    t         y    u    i    o    @p
+  @caps @a   @s   @d   @f   g         h    @j   @k   @l   @semi
+  @z    @x   @c   @v   @b     @n   @m   @comma @dot  /
+          @lalt          @nav           @ralt
+)
+
+
+(deflayer navigation
+    XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+    XX   XX   XX   XX   XX        home pgdn pgup end   _
+ _ @all   @cpy @pst  _    XX        lft  down up   rght XX
+    @ndo   XX   _   XX    XX        XX   XX   XX   XX   XX
+              _            _            _
 )

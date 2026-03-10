@@ -21,6 +21,20 @@ path=(
     $HOME/.dotnet/tools
     $path
 )
+# cd into a file starting from root (R)
+cdrh() {
+    local element
+    element=$(
+        fd -H -t f -t d . / 2>/dev/null |
+            fzf --preview 'bat --style=numbers --color=always {}'
+    ) || return
+
+    if [[ -d "$element" ]]; then
+        cd "$element"
+    else
+        cd "$(dirname "$element")"
+    fi
+}
 
 # cd into a file starting from root (R)
 cdr() {
@@ -96,6 +110,21 @@ x() {
         ;;
     *) echo "wrong number >= 2 arguments provided to function x" ;;
     esac
+}
+
+s() {
+    if [[ $# -eq 1 ]]; then
+        # open the sioyok
+        # this @ passes all the arguments to the command
+        sioyek "$1" >/dev/null 2>&1 &
+        # force the shell to not deal with the program anymore (its independent now)
+        disown
+    else
+        for f in "$@"; do
+            sioyek "$f" >/dev/null 2>&1 &
+            disown
+        done
+    fi
 }
 
 # activate the py310 conda environment (c a p  )

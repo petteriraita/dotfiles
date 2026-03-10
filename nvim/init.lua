@@ -258,6 +258,12 @@ vim.filetype.add {
     thy = 'isabelle',
   },
 }
+-- petteri add hygge filetype
+vim.filetype.add {
+  extension = {
+    hyg = 'hyg',
+  },
+}
 -- add the file type tex, and make it so that wrapping is word, not byte based
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'tex',
@@ -376,7 +382,18 @@ require('lazy').setup({
           vim.bo.commentstring = '(* %s *)'
         end,
       })
+      vim.api.nvim_create_autocmd('FileType', {
+        pattern = 'hyg',
+        callback = function()
+          vim.bo.commentstring = '// %s'
+        end,
+      })
     end,
+  },
+  -- Petteri, add the isabelle conceal plugin
+  {
+    'Treeniks/isabelle-syn.nvim',
+    ft = 'isabelle',
   },
   -- Petteri, add the isabelle plugin
   {
@@ -385,6 +402,8 @@ require('lazy').setup({
       require('isabelle-lsp').setup {
         -- adding this line to make sure this syntax highlighting only happens for isabelle files
         ft = 'isabelle',
+        -- adding this to force this path over the system path; the goal is to use the dev version of isabelle
+        isabelle_path = '/home/pt/opt/isabelle-tip-tar/bin/isabelle',
         unicode_symbols_output = true,
         unicode_symbols_edits = true,
         auto_open_output = false,
@@ -1195,5 +1214,70 @@ require('lazy').setup({
   },
 })
 
+-- Petteri Hide Isabelle OUTPUT/PROGRESS panes when entering insert mode
+vim.api.nvim_create_autocmd('InsertEnter', {
+  callback = function()
+    for _, win in ipairs(vim.api.nvim_list_wins()) do
+      local buf = vim.api.nvim_win_get_buf(win)
+      local name = vim.api.nvim_buf_get_name(buf)
+
+      if name:match '%-OUTPUT%-$' or name:match '%-PROGRESS%-$' then
+        vim.api.nvim_win_close(win, false)
+      end
+    end
+  end,
+})
+local function open_isabelle_panel(kind, vertical)
+  -- kind: "OUTPUT" or "PROGRESS"
+  local target_pat = '%-' .. kind .. '%-$'
+  local target_buf = nil
+
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_loaded(buf) then
+      local name = vim.api.nvim_buf_get_name(buf)
+      if name:match(target_pat) then
+        target_buf = buf
+        break
+      end
+    end
+  end
+
+  if not target_buf then
+    -- pane buffer not created yet; opening a .thy and waiting for LSP output usually creates it
+    vim.notify('Isabelle ' .. kind .. ' buffer not found (yet).', vim.log.levels.WARN)
+    return
+  end
+
+  -- if it's already visible somewhere, just jump to it
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_get_buf(win) == target_buf then
+      vim.api.nvim_set_current_win(win)
+      return
+    end
+  end
+
+  -- otherwise open it
+  if vertical then
+    vim.cmd 'vsplit'
+  else
+    vim.cmd 'split'
+  end
+  vim.api.nvim_set_current_buf(target_buf)
+end
+
+vim.keymap.set('n', '<leader>io', function()
+  open_isabelle_panel('OUTPUT', false)
+end, { desc = 'Isabelle output pane' })
+vim.keymap.set('n', '<leader>ip', function()
+  open_isabelle_panel('PROGRESS', false)
+end, { desc = 'Isabelle progress pane' })
+
+-- optional: right-side vertical versions
+vim.keymap.set('n', '<leader>iO', function()
+  open_isabelle_panel('OUTPUT', true)
+end, { desc = 'Isabelle output (vsplit)' })
+vim.keymap.set('n', '<leader>iP', function()
+  open_isabelle_panel('PROGRESS', true)
+end, { desc = 'Isabelle progress (vsplit)' })
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
