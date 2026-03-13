@@ -58,6 +58,8 @@ caps  a    s    d    f    g         h    j    k    l    ;
   semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
   p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
 
+
+
   ;; ── identity aliases (boring, but critical) ─────────
   s     s
   d     d
@@ -76,6 +78,9 @@ caps  a    s    d    f    g         h    j    k    l    ;
 ;; Navigation layer
 (defalias
 
+  ;; the nordic keys
+  awithdot (unicode å)
+
   all C-a
   sav C-s
   cls C-w
@@ -84,20 +89,74 @@ caps  a    s    d    f    g         h    j    k    l    ;
   cpy C-c
   pst C-v
 )
-;; 10, 10, 10 +1, 10, 3 ==> 44
-(deflayer base
-  1    2    3    4    5    6    7    8    9    0
-  q    w    e    r    t         y    u    i    o    @p
-  @caps @a   @s   @d   @f   g         h    @j   @k   @l   @semi
-  @z    @x   @c   @v   @b     @n   @m   @comma @dot  /
-          @lalt          @nav           @ralt
+
+
+;; Symbols layer (straight from arsenik lafayette)
+(defalias
+
+  ^  AG-q
+  <  AG-w
+  >  AG-e
+  $  AG-r
+  %  AG-t
+  @  AG-y
+  &  AG-u
+  *  AG-i
+  '  AG-o
+  `  AG-p
+
+  {  AG-a
+  pl AG-s
+  pr AG-d
+  }  AG-f
+  =  AG-g
+  \  AG-h
+  +  AG-j
+  -  AG-k
+  /  AG-l
+  '' AG-;
+
+  ~  AG-z
+  [  AG-x
+  ]  AG-c
+  _  AG-v
+  #  AG-b
+  |  AG-n
+  !  AG-m
+  ;  AG-,
+  :  AG-.
+  ?  AG-/
+)
+;;
+;;(deflayer symbols
+;;  AG-1 AG-2 AG-3 AG-4 AG-5 XX   AG-6 AG-7 AG-8 AG-9 AG-0
+;;  @^   @<   @>   @$   @%        @@   @&   @*   @'   @`
+;;  @{   @pl  @pr  @}   @=        @\   @+   @-   @/   @''
+;;  @~   @[   @]   @_   @#   XX   @|   @!   @;   @:   @?
+;;            _             spc             _
+;;)
+
+(deflayer symbols
+         AG-1  AG-2  AG-3  AG-4  AG-5        XX    AG-6  AG-7  AG-8  AG-9  AG-0
+         @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
+         @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
+         @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
+                _            spc             _
 )
 
+;; 10, 10, 10 +1, 10, 3 ==> 44
+(deflayer base
+          1      2      3      4      5           6      7      8      9      0
+          q      w      e      r      t           y      u      i      o      @p
+   @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
+          @z     @x     @c     @v     @b           @n     @m     @comma @dot   /
+                       @lalt          @nav            @ralt
+)
 
 (deflayer navigation
-    XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
-    XX   XX   XX   XX   XX        home pgdn pgup end   _
- _ @all   @cpy @pst  _    XX        lft  down up   rght XX
-    @ndo   XX   _   XX    XX        XX   XX   XX   XX   XX
-              _            _            _
+          XX     XX     XX     XX     XX          XX     XX     XX     XX     XX
+          @awithdot XX  XX     XX     XX          home   pgdn   pgup   end    _
+   _      @all   @cpy   @pst   _      XX   lft    down   up     rght   XX
+          @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
+                       _            _             _
 )
