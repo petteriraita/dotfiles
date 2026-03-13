@@ -28,11 +28,11 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (defsrc
-  1    2    3    4    5  6    7    8    9    0
-  q    w    e    r    t         y    u    i    o    p
-caps  a    s    d    f    g         h    j    k    l    ;
-  z    x    c    v    b       n    m    ,    .    /
-            lalt          spc             ralt
+          1      2      3      4      5           6      7      8      9      0
+          q      w      e      r      t           y      u      i      o      p
+   caps   a      s      d      f      g           h      j      k      l      ;
+          z      x      c      v      b           n      m      ,      .      /
+                      lalt          spc           ralt
 )
 ;; this is supposed to work as to disable the same hand mod keys from being pressed accidentally
 
@@ -42,7 +42,8 @@ caps  a    s    d    f    g         h    j    k    l    ;
 
   ;; Space-cadet thumb keys: Shift/BackSpace, AltGr/Enter.
   ;; Acts as a modifier by default, or as BackSpace/Enter when tapped separately.
-  lalt (tap-hold-press $tap_timeout $hold_timeout bspc lsft)
+  lalt (tap-hold $tap_timeout $hold_timeout bspc (layer-while-held symbols))
+
   ralt  (tap-hold-release-keys $tap_timeout $hold_timeout ret ralt $right-hand-keys-no-mods)
 
   ;; ── modifiers / special ─────────────────────────────
@@ -91,72 +92,76 @@ caps  a    s    d    f    g         h    j    k    l    ;
 )
 
 
-;; Symbols layer (straight from arsenik lafayette)
+;; Symbols layer (straight from arsenik lafayette, however, im not sending them ast Alt gr keycodes)
 (defalias
 
-  ^  AG-q
-  <  AG-w
-  >  AG-e
-  $  AG-r
-  %  AG-t
-  @  AG-y
-  &  AG-u
-  *  AG-i
-  '  AG-o
-  `  AG-p
+  ^  S-6
+  <  S-,
+  >  S-.
+  $  S-4
+  %  S-5
+  @  S-2
+  &  S-7
+  *  S-8
+  '  '
+  `  `
 
-  {  AG-a
-  pl AG-s
-  pr AG-d
-  }  AG-f
-  =  AG-g
-  \  AG-h
-  +  AG-j
-  -  AG-k
-  /  AG-l
-  '' AG-;
+  {  S-[
+  pl S-9
+  pr S-0
+  }  S-]
+  =  =
+  \  S-\
+  +  S-=
+  -  -
+  /  /
+  '' S-'
 
-  ~  AG-z
-  [  AG-x
-  ]  AG-c
-  _  AG-v
-  #  AG-b
-  |  AG-n
-  !  AG-m
-  ;  AG-,
-  :  AG-.
-  ?  AG-/
+  ~  S-`
+  [  [
+  ]  ]
+  _  S--
+  #  S-3
+  |  S-\
+  !  S-1
+  ;  ;
+  :  S-;
+  ?  S-/
 )
-;;
-;;(deflayer symbols
-;;  AG-1 AG-2 AG-3 AG-4 AG-5 XX   AG-6 AG-7 AG-8 AG-9 AG-0
-;;  @^   @<   @>   @$   @%        @@   @&   @*   @'   @`
-;;  @{   @pl  @pr  @}   @=        @\   @+   @-   @/   @''
-;;  @~   @[   @]   @_   @#   XX   @|   @!   @;   @:   @?
-;;            _             spc             _
-;;)
 
-(deflayer symbols
-         AG-1  AG-2  AG-3  AG-4  AG-5        XX    AG-6  AG-7  AG-8  AG-9  AG-0
-         @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
-         @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
-         @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
-                _            spc             _
-)
+;; (deflayer empty
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;    XX     XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;                XX          XX           XX
+;; )
+
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer base
           1      2      3      4      5           6      7      8      9      0
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
-          @z     @x     @c     @v     @b           @n     @m     @comma @dot   /
+          @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
                        @lalt          @nav            @ralt
 )
 
+;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer navigation
           XX     XX     XX     XX     XX          XX     XX     XX     XX     XX
           @awithdot XX  XX     XX     XX          home   pgdn   pgup   end    _
-   _      @all   @cpy   @pst   _      XX   lft    down   up     rght   XX
+   _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
                        _            _             _
+)
+
+
+;; 10, 10, 10 +1, 10, 3 ==> 44
+(deflayer symbols
+         XX    XX    XX    XX    XX          XX    XX    XX    XX    XX
+         @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
+    _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
+         @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
+                _            spc             _
 )
