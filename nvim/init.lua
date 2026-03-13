@@ -252,6 +252,14 @@ end
 local rtp = vim.opt.rtp
 rtp:prepend(lazypath)
 
+-- petteri add fsharp
+vim.filetype.add {
+  extension = {
+    fs = 'fsharp',
+    fsx = 'fsharp',
+  },
+}
+
 -- petteri add isabelle filetype
 vim.filetype.add {
   extension = {
@@ -403,7 +411,8 @@ require('lazy').setup({
         -- adding this line to make sure this syntax highlighting only happens for isabelle files
         ft = 'isabelle',
         -- adding this to force this path over the system path; the goal is to use the dev version of isabelle
-        isabelle_path = '/home/pt/opt/isabelle-tip-tar/bin/isabelle',
+        --
+        isabelle_path = '/home/pt/opt/isabelle-dev-gitmirror/bin/isabelle',
         unicode_symbols_output = true,
         unicode_symbols_edits = true,
         auto_open_output = false,
@@ -425,6 +434,11 @@ require('lazy').setup({
   {
     'ThreeFx/isabelle.vim',
     ft = 'isabelle',
+  },
+
+  -- Petteri, add a color theme plugin
+  {
+    'projekt0n/github-nvim-theme',
   },
 
   -- Here is a more advanced example where we pass configuration
@@ -1076,7 +1090,22 @@ require('lazy').setup({
       signature = { enabled = true },
     },
   },
-
+  -- new light color scheme
+  -- {
+  --   'projekt0n/github-nvim-theme',
+  --   priority = 1000,
+  --   config = function()
+  --     require('github-theme').setup {
+  --       options = {
+  --         styles = {
+  --           comments = 'NONE',
+  --         },
+  --       },
+  --     }
+  --
+  --     vim.cmd.colorscheme 'github_light'
+  --   end,
+  -- },
   { -- You can easily change to a different colorscheme.
     -- Change the name of the colorscheme plugin below, and then
     -- change the command in the config to whatever the name of that colorscheme is.
@@ -1213,7 +1242,7 @@ require('lazy').setup({
     },
   },
 })
-
+-- end of the plugins
 -- Petteri Hide Isabelle OUTPUT/PROGRESS panes when entering insert mode
 vim.api.nvim_create_autocmd('InsertEnter', {
   callback = function()
