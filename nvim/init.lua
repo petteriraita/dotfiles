@@ -351,7 +351,7 @@ require('lazy').setup({
       }
       vim.opt.conceallevel = 2
       -- Zathura viewer
-      vim.g.vimtex_view_method = 'zathura'
+      vim.g.vimtex_view_method = 'sioyek'
       -- Keep VimTeX on latexmk (default), but make sure SyncTeX is on:
       vim.g.vimtex_compiler_latexmk = {
         options = {
@@ -887,6 +887,11 @@ require('lazy').setup({
           on_attach = function(client, bufnr)
             client.server_capabilities.documentFormattingProvider = false
           end,
+          settings = {
+            FSharp = {
+              simplifyNameAnalyzer = false,
+            },
+          },
         },
       }
 
@@ -1310,3 +1315,17 @@ vim.keymap.set('n', '<leader>iP', function()
 end, { desc = 'Isabelle progress (vsplit)' })
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
+--
+--
+--disabling warnings (need this for sharp)
+vim.diagnostic.config {
+  virtual_text = {
+    severity = { min = vim.diagnostic.severity.WARN },
+  },
+  signs = {
+    severity = { min = vim.diagnostic.severity.WARN },
+  },
+  underline = {
+    severity = { min = vim.diagnostic.severity.WARN },
+  },
+}

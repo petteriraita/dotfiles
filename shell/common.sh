@@ -144,6 +144,21 @@ clip() {
     fi | xclip -selection clipboard
 }
 
+g() {
+    # check if the argument length is 0, then just move to where we are
+    if [ -z "$1" ]; then
+        abs="$(pwd)"
+    else
+        abs="$(realpath "$1")" || return 1
+    fi
+
+    if [ -f "$abs" ]; then
+        cd "$(dirname "$abs")"
+    else
+        cd "$abs"
+    fi
+}
+
 p() {
     if [ -z "$1" ]; then
         abs="$(pwd)"

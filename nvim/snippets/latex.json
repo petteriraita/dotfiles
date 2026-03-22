@@ -90,7 +90,7 @@
 
   "Align": {
     "prefix": "al",
-    "body": "\\begin{align}\n  ${1}\n\\end{align}"
+    "body": "\\begin{align*}\n    & ${1} \\\\\\\\\n    & $0\n\\end{align*}"
   },
   "Itemize": {
     "prefix": "it",
@@ -176,60 +176,7 @@
     "body": "\\cite{${1:key}}"
   },
   "Bold Text": {
-    "prefix": "bf",
+    "prefix": "bt",
     "body": "\\textbf{${1}}"
-  },
-  "Math Text": {
-    "prefix": "tx",
-    "body": "\\text{${1}}$0"
-  },
-  "Greek alpha": { "prefix": ";a", "body": "\\alpha" },
-  "Greek beta": { "prefix": ";b", "body": "\\beta" },
-  "Greek gamma": { "prefix": ";g", "body": "\\gamma" },
-  "Greek delta": { "prefix": ";d", "body": "\\delta" },
-  "Greek epsilon": { "prefix": ";e", "body": "\\epsilon" },
-  "Greek zeta": { "prefix": ";z", "body": "\\zeta" },
-  "Greek eta": { "prefix": ";h", "body": "\\eta" },
-  "Greek theta": { "prefix": ";t", "body": "\\theta" },
-  "Greek iota": { "prefix": ";i", "body": "\\iota" },
-  "Greek kappa": { "prefix": ";k", "body": "\\kappa" },
-  "Greek lambda": { "prefix": ";l", "body": "\\lambda" },
-  "Greek mu": { "prefix": ";m", "body": "\\mu" },
-  "Greek nu": { "prefix": ";n", "body": "\\nu" },
-  "Greek xi": { "prefix": ";x", "body": "\\xi" },
-  "Greek omicron": { "prefix": ";o", "body": "\\omicron" },
-  "Greek pi": { "prefix": ";p", "body": "\\pi" },
-  "Greek rho": { "prefix": ";r", "body": "\\rho" },
-  "Greek sigma": { "prefix": ";s", "body": "\\sigma" },
-  "Greek tau": { "prefix": ";u", "body": "\\tau" },
-  "Greek upsilon": { "prefix": ";y", "body": "\\upsilon" },
-  "Greek phi": { "prefix": ";f", "body": "\\phi" },
-  "Greek chi": { "prefix": ";c", "body": "\\chi" },
-  "Greek psi": { "prefix": ";ps", "body": "\\psi" },
-  "Greek omega": { "prefix": ";w", "body": "\\omega" },
-"Greek Alpha":   { "prefix": ";A",  "body": "\\Alpha" },
-"Greek Beta":    { "prefix": ";B",  "body": "\\Beta" },
-"Greek Gamma":   { "prefix": ";G",  "body": "\\Gamma" },
-"Greek Delta":   { "prefix": ";D",  "body": "\\Delta" },
-"Greek Epsilon": { "prefix": ";E",  "body": "\\Epsilon" },
-"Greek Zeta":    { "prefix": ";Z",  "body": "\\Zeta" },
-"Greek Eta":     { "prefix": ";H",  "body": "\\Eta" },
-"Greek Theta":   { "prefix": ";T",  "body": "\\Theta" },
-"Greek Iota":    { "prefix": ";I",  "body": "\\Iota" },
-"Greek Kappa":   { "prefix": ";K",  "body": "\\Kappa" },
-"Greek Lambda":  { "prefix": ";L",  "body": "\\Lambda" },
-"Greek Mu":      { "prefix": ";M",  "body": "\\Mu" },
-"Greek Nu":      { "prefix": ";N",  "body": "\\Nu" },
-"Greek Xi":      { "prefix": ";X",  "body": "\\Xi" },
-"Greek Omicron": { "prefix": ";O",  "body": "\\Omicron" },
-"Greek Pi":      { "prefix": ";P",  "body": "\\Pi" },
-"Greek Rho":     { "prefix": ";R",  "body": "\\Rho" },
-"Greek Sigma":   { "prefix": ";S",  "body": "\\Sigma" },
-"Greek Tau":     { "prefix": ";U",  "body": "\\Tau" },
-"Greek Upsilon": { "prefix": ";Y",  "body": "\\Upsilon" },
-"Greek Phi":     { "prefix": ";F",  "body": "\\Phi" },
-"Greek Chi":     { "prefix": ";C",  "body": "\\Chi" },
-"Greek Psi":     { "prefix": ";PS", "body": "\\Psi" },
-"Greek Omega":   { "prefix": ";W",  "body": "\\Omega" }
-
+  }
 }

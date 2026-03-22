@@ -44,7 +44,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   ;; Acts as a modifier by default, or as BackSpace/Enter when tapped separately.
   lalt (tap-hold $tap_timeout $hold_timeout bspc (layer-while-held symbols))
 
-  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout ret ralt $right-hand-keys-no-mods)
+  ralt  (tap-hold $tap_timeout $hold_timeout ret (layer-while-held symbols))
 
   ;; ── modifiers / special ─────────────────────────────
   ;; left hand
@@ -79,8 +79,6 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 ;; Navigation layer
 (defalias
 
-  ;; the nordic keys
-  awithdot (unicode å)
 
   all C-a
   sav C-s
@@ -94,6 +92,16 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 ;; Symbols layer (straight from arsenik lafayette, however, im not sending them ast Alt gr keycodes)
 (defalias
+
+
+
+  ;; the nordic keys
+  ;; stands for o with 2 dots
+  oddots (unicode ö)
+  addots (unicode ä)
+  awithring (unicode å)   ;; a with ring
+  ae (unicode æ)
+  oslash (unicode ø)
 
   ^  S-6
   <  S-,
@@ -111,7 +119,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   pr S-0
   }  S-]
   =  =
-  \  S-\
+  \  \
   +  S-=
   -  -
   /  /
@@ -150,7 +158,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer navigation
           XX     XX     XX     XX     XX          XX     XX     XX     XX     XX
-          @awithdot XX  XX     XX     XX          home   pgdn   pgup   end    _
+          XX     XX     XX     XX     XX          home   pgdn   pgup   end    _
    _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
                        _            _             _
@@ -159,7 +167,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer symbols
-         XX    XX    XX    XX    XX          XX    XX    XX    XX    XX
+         @awithring    @ae        @addots    @oslash          @oddots    XX    XX    XX     XX    XX
          @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
     _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
          @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
