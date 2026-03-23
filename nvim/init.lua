@@ -202,12 +202,6 @@ vim.keymap.set('n', '<leader>cp', function()
   vim.fn.setreg('+', vim.fn.expand '%:p')
 end, { desc = 'copy file path' })
 
--- TIP: Disable arrow keys in normal mode
--- vim.keymap.set('n', '<left>', '<cmd>echo "Use h to move!!"<CR>')
--- vim.keymap.set('n', '<right>', '<cmd>echo "Use l to move!!"<CR>')
--- vim.keymap.set('n', '<up>', '<cmd>echo "Use k to move!!"<CR>')
--- vim.keymap.set('n', '<down>', '<cmd>echo "Use j to move!!"<CR>')
-
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
 --
@@ -1248,73 +1242,153 @@ require('lazy').setup({
   },
 })
 -- end of the plugins
--- Petteri Hide Isabelle OUTPUT/PROGRESS panes when entering insert mode
-vim.api.nvim_create_autocmd('InsertEnter', {
+-- Petteri Hide Isabelle OUTPUT/PROGRESS panes when entering isabelle thy file
+vim.api.nvim_create_autocmd('BufWinEnter', {
+  callback = function(args)
+    local name = vim.api.nvim_buf_get_name(args.buf)
+
+    if name:match '/%-OUTPUT%-$' or name:match '/%-PROGRESS%-$' then
+      vim.schedule(function()
+        if vim.api.nvim_buf_is_valid(args.buf) then
+          vim.api.nvim_buf_delete(args.buf, { force = true })
+        end
+      end)
+    end
+  end,
+})
+
+local function remove_isabelle_fake_buffers()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    local name = vim.api.nvim_buf_get_name(buf)
+
+    if name:match '%-OUTPUT%-$' or name:match '%-PROGRESS%-$' then
+      if vim.api.nvim_buf_is_valid(buf) then
+        vim.api.nvim_buf_delete(buf, { force = true })
+      end
+    end
+  end
+end
+
+vim.keymap.set('n', '<leader>id', remove_isabelle_fake_buffers, {
+  desc = 'Delete fake Isabelle buffers',
+})
+
+vim.api.nvim_create_autocmd({ 'BufWinEnter', 'BufAdd' }, {
   callback = function()
     for _, win in ipairs(vim.api.nvim_list_wins()) do
       local buf = vim.api.nvim_win_get_buf(win)
       local name = vim.api.nvim_buf_get_name(buf)
 
-      if name:match '%-OUTPUT%-$' or name:match '%-PROGRESS%-$' then
-        vim.api.nvim_win_close(win, false)
+      -- kill only the fake early buffers
+      if name:match '/%-OUTPUT%-$' or name:match '/%-PROGRESS%-$' then
+        vim.api.nvim_win_close(win, true)
       end
     end
   end,
 })
-local function open_isabelle_panel(kind, vertical)
-  -- kind: "OUTPUT" or "PROGRESS"
-  local target_pat = '%-' .. kind .. '%-$'
-  local target_buf = nil
 
+-- Isabelle OUTPUT window control
+-- <leader>is = hide
+-- <leader>id = show at 25%
+-- <leader>if = show at 50%
+
+local function is_isabelle_output_name(name)
+  return name:match '%-%-OUTPUT%-%-$' ~= nil
+end
+
+local function find_isabelle_output_buf()
   for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(buf) then
+    if vim.api.nvim_buf_is_valid(buf) then
       local name = vim.api.nvim_buf_get_name(buf)
-      if name:match(target_pat) then
-        target_buf = buf
-        break
+      if is_isabelle_output_name(name) then
+        return buf
       end
     end
   end
+  return nil
+end
 
-  if not target_buf then
-    -- pane buffer not created yet; opening a .thy and waiting for LSP output usually creates it
-    vim.notify('Isabelle ' .. kind .. ' buffer not found (yet).', vim.log.levels.WARN)
+local function find_isabelle_output_win()
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    if vim.api.nvim_win_is_valid(win) then
+      local buf = vim.api.nvim_win_get_buf(win)
+      local name = vim.api.nvim_buf_get_name(buf)
+      if is_isabelle_output_name(name) then
+        return win
+      end
+    end
+  end
+  return nil
+end
+
+local function ensure_isabelle_output_window()
+  local win = find_isabelle_output_win()
+  if win then
+    return win
+  end
+
+  local buf = find_isabelle_output_buf()
+  if not buf then
+    vim.notify('No live Isabelle --OUTPUT-- buffer exists yet', vim.log.levels.WARN)
+    return nil
+  end
+
+  local curwin = vim.api.nvim_get_current_win()
+
+  vim.cmd 'botright split'
+  local newwin = vim.api.nvim_get_current_win()
+  vim.api.nvim_win_set_buf(newwin, buf)
+
+  -- keep the buffer around when hiding the window later
+  pcall(vim.api.nvim_set_option_value, 'bufhidden', 'hide', { buf = buf })
+
+  if vim.api.nvim_win_is_valid(curwin) then
+    vim.api.nvim_set_current_win(curwin)
+  end
+
+  return newwin
+end
+
+local function set_isabelle_output(mode)
+  local win = find_isabelle_output_win()
+
+  if mode == 'hide' then
+    if win and vim.api.nvim_win_is_valid(win) then
+      vim.api.nvim_win_close(win, true)
+    end
     return
   end
 
-  -- if it's already visible somewhere, just jump to it
-  for _, win in ipairs(vim.api.nvim_list_wins()) do
-    if vim.api.nvim_win_get_buf(win) == target_buf then
-      vim.api.nvim_set_current_win(win)
-      return
-    end
+  win = ensure_isabelle_output_window()
+  if not win then
+    return
   end
 
-  -- otherwise open it
-  if vertical then
-    vim.cmd 'vsplit'
+  local total_height = vim.o.lines
+  local target_height
+
+  if mode == '25' then
+    target_height = math.max(3, math.floor(total_height * 0.18))
+  elseif mode == '50' then
+    target_height = math.max(3, math.floor(total_height * 0.50))
   else
-    vim.cmd 'split'
+    return
   end
-  vim.api.nvim_set_current_buf(target_buf)
+
+  vim.api.nvim_win_set_height(win, target_height)
 end
 
-vim.keymap.set('n', '<leader>io', function()
-  open_isabelle_panel('OUTPUT', false)
-end, { desc = 'Isabelle output pane' })
-vim.keymap.set('n', '<leader>ip', function()
-  open_isabelle_panel('PROGRESS', false)
-end, { desc = 'Isabelle progress pane' })
+vim.keymap.set('n', '<leader>is', function()
+  set_isabelle_output 'hide'
+end, { desc = 'Isabelle output hide' })
 
--- optional: right-side vertical versions
-vim.keymap.set('n', '<leader>iO', function()
-  open_isabelle_panel('OUTPUT', true)
-end, { desc = 'Isabelle output (vsplit)' })
-vim.keymap.set('n', '<leader>iP', function()
-  open_isabelle_panel('PROGRESS', true)
-end, { desc = 'Isabelle progress (vsplit)' })
--- The line beneath this is called `modeline`. See `:help modeline`
--- vim: ts=2 sts=2 sw=2 et
+vim.keymap.set('n', '<leader>id', function()
+  set_isabelle_output '25'
+end, { desc = 'Isabelle output 25%' })
+
+vim.keymap.set('n', '<leader>if', function()
+  set_isabelle_output '50'
+end, { desc = 'Isabelle output 50%' })
 --
 --
 --disabling warnings (need this for sharp)
@@ -1329,3 +1403,6 @@ vim.diagnostic.config {
     severity = { min = vim.diagnostic.severity.WARN },
   },
 }
+
+-- The line beneath this is called `modeline`. See `:help modeline`
+-- vim: ts=2 sts=2 sw=2 et

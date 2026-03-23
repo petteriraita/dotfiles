@@ -96,6 +96,11 @@ md2pdf() {
     pandoc "$1" -o "${1%.md}.pdf" --pdf-engine=xelatex -V fontsize=12pt
 }
 
+s() {
+    # so if you need to pass the page options etc. use this function
+    sioyek "$@" >/dev/null 2>&1 &
+    disown
+}
 x() {
     case $# in
     # 0) echo "got the input of 0 args" ;;
@@ -104,27 +109,13 @@ x() {
         xdg-open "$PWD" >/dev/null 2>&1 &
         disown
         ;;
-    1)
-        xdg-open "$1" >/dev/null 2>&1 &
+    *)
+        # so if there are multiple arguments, all of them are passed to the xdg-open like normally.
+        xdg-open "$@" >/dev/null 2>&1 &
         disown
         ;;
-    *) echo "wrong number >= 2 arguments provided to function x" ;;
+    # *) echo "wrong number >= 2 arguments provided to function x" ;;
     esac
-}
-
-s() {
-    if [[ $# -eq 1 ]]; then
-        # open the sioyok
-        # this @ passes all the arguments to the command
-        sioyek "$1" >/dev/null 2>&1 &
-        # force the shell to not deal with the program anymore (its independent now)
-        disown
-    else
-        for f in "$@"; do
-            sioyek "$f" >/dev/null 2>&1 &
-            disown
-        done
-    fi
 }
 
 # activate the py310 conda environment (c a p  )
