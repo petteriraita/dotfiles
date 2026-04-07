@@ -187,6 +187,7 @@ alias hist='history | sort -r | head -n 10'
 alias calc='code /home/petteri/development_files/python_gre/calulator.ipynb'
 alias jpamb='code development_files/dtu/program_analysis/jpamb/'
 alias py='python3'
+alias ca='conda activate'
 
 ## GIT
 alias gs='git status'

@@ -202,6 +202,17 @@ vim.keymap.set('n', '<leader>cp', function()
   vim.fn.setreg('+', vim.fn.expand '%:p')
 end, { desc = 'copy file path' })
 
+-- Petteri add molten
+--
+vim.keymap.set('n', '<localleader>mi', ':MoltenInit<CR>', { silent = true, desc = 'Initialize the plugin' })
+vim.keymap.set('n', '<localleader>e', ':MoltenEvaluateOperator<CR>', { silent = true, desc = 'run operator selection' })
+vim.keymap.set('n', '<localleader>rl', ':MoltenEvaluateLine<CR>', { silent = true, desc = 'evaluate line' })
+vim.keymap.set('n', '<localleader>rr', ':MoltenReevaluateCell<CR>', { silent = true, desc = 're-evaluate cell' })
+vim.keymap.set('v', '<localleader>r', ':<C-u>MoltenEvaluateVisual<CR>gv', { silent = true, desc = 'evaluate visual selection' })
+
+vim.keymap.set('n', '<localleader>oh', ':MoltenHideOutput<CR>', { desc = 'close output window', silent = true })
+vim.keymap.set('n', '<localleader>md', ':MoltenDelete<CR>', { desc = 'delete Molten cell', silent = true })
+
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
 --
@@ -282,6 +293,10 @@ vim.api.nvim_create_user_command('Leetformat', function(opts)
   vim.cmd(range .. 's/\\]/\\}/g')
   vim.cmd(range .. 's/"/\'/g')
 end, { range = true })
+
+--- petteri, add the python path to strict
+vim.g.python3_host_prog = vim.fn.exepath 'python3'
+
 -- [[ Configure and install plugins ]]
 --
 --  To check the current status of your plugins, run
@@ -322,24 +337,55 @@ require('lazy').setup({
       require('nvim-autopairs').setup {}
     end,
   },
-  -- petteri start of the java plugin
+  -- Petteri --- the image plugin
+  {
+    '3rd/image.nvim',
+    opts = {
+      backend = 'kitty',
+      max_width = 100,
+      max_height = 12,
+      max_height_window_percentage = math.huge,
+      max_width_window_percentage = math.huge,
+
+      rocks = {
+        enabled = false,
+        hererocks = false,
+      },
+    },
+  },
+  -- petteri start of the java plugin. previous problems that program root was in the wrong folder, so setting the searchclient readme here
   {
     'mfussenegger/nvim-jdtls',
     config = function()
       local jdtls = require 'jdtls'
+      local jdtls_setup = require 'jdtls.setup'
 
-      local root_markers = { '.git', 'mvnw', 'gradlew', 'pom.xml', 'build.gradle' }
+      local root_markers = {
+        'readme-searchclient.txt',
+        'pom.xml',
+        'build.gradle',
+        'mvnw',
+        'gradlew',
+        '.git',
+      }
 
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'java',
         callback = function()
-          local root_dir = require('jdtls.setup').find_root(root_markers)
-          if root_dir == nil then
+          local root_dir = jdtls_setup.find_root(root_markers)
+          if not root_dir then
             return
           end
 
+          local project_name = vim.fn.fnamemodify(root_dir, ':p:h:t')
+          local workspace_dir = vim.fn.stdpath 'data' .. '/jdtls-workspace/' .. project_name
+
           local config = {
-            cmd = { vim.fn.stdpath 'data' .. '/mason/bin/jdtls' },
+            cmd = {
+              vim.fn.stdpath 'data' .. '/mason/bin/jdtls',
+              '-data',
+              workspace_dir,
+            },
             root_dir = root_dir,
           }
 
@@ -416,6 +462,14 @@ require('lazy').setup({
           vim.bo.commentstring = '// %s'
         end,
       })
+    end,
+  },
+  -- petteri add jupyter notebook plugin
+  {
+    'benlubas/molten-nvim',
+    build = ':UpdateRemotePlugins',
+    config = function()
+      vim.g.molten_auto_open_output = true
     end,
   },
   -- Petteri, add the isabelle conceal plugin
@@ -986,7 +1040,8 @@ require('lazy').setup({
       end,
       formatters_by_ft = {
         lua = { 'stylua' },
-        python = { 'ruff_format' },
+        python = {},
+        -- python = { 'ruff_format' },
         cpp = { 'clang_format' },
         c = { 'clang_format' },
         sh = { 'shfmt' },

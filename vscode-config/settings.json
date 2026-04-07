@@ -141,7 +141,7 @@
 
 
     "python.experiments.optOutFrom": ["DeprecatePythonPath"],
-    "python.defaultInterpreterPath": "/home/petteriraita/miniconda3/envs/generalp/bin/python",
+    "python.defaultInterpreterPath": "/bin/python",
     "python.venvPath": "/home/petteriraita/miniconda3/envs",
     "python.terminal.activateEnvironment": true,
     "python.interpreter.warning.ignoreLegacyPython": true,
