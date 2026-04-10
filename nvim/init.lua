@@ -368,7 +368,6 @@ require('lazy').setup({
         'gradlew',
         '.git',
       }
-
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'java',
         callback = function()
@@ -387,6 +386,21 @@ require('lazy').setup({
               workspace_dir,
             },
             root_dir = root_dir,
+            -- "." means: treat the project root directory as a source root. trying this out
+            -- settings = {
+            settings = {
+              java = {
+                format = {
+                  settings = {
+                    url = '/home/pt/.config/java/formatter.xml',
+                    profile = 'Default',
+                  },
+                },
+                project = {
+                  sourcePaths = { '.' },
+                },
+              },
+            },
           }
 
           jdtls.start_or_attach(config)
@@ -991,6 +1005,9 @@ require('lazy').setup({
       require('mason-lspconfig').setup {
         ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
         automatic_installation = false,
+        automatic_enable = {
+          exclude = { 'jdtls' },
+        },
         handlers = {
           -- default handler
           function(server_name)

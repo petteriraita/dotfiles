@@ -3,6 +3,7 @@
   "contributes": {
     "snippets": [
       { "language": ["python"], "path": "./python.json" },
+      { "language": ["java"],   "path": "./java.json" },
       { "language": ["cpp"],    "path": "./cpp.json" },
       { "language": ["tex", "latex"], "path": "./latex.json" }
     ]
