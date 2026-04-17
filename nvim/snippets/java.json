@@ -30,6 +30,13 @@
 		],
 		"description": "test snippet"
 	},
+	"DPrint": {
+		"prefix": "dcl",
+		"body": [
+			"System.err.println(\"$1\");"
+		],
+		"description": "Log output to console"
+	},
 	"DPrint variable": {
 		"prefix": "dclv",
 		"body": [

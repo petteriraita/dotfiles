@@ -228,6 +228,28 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 -- vim.keymap.set("n", "<C-S-j>", "<C-w>J", { desc = "Move window to the lower" })
 -- vim.keymap.set("n", "<C-S-k>", "<C-w>K", { desc = "Move window to the upper" })
 
+vim.keymap.set('n', '<Leader>dr', function()
+  require('dap').repl.open()
+end)
+vim.keymap.set('n', '<F5>', function()
+  require('dap').continue()
+end)
+vim.keymap.set('n', '<F10>', function()
+  require('dap').step_over()
+end)
+vim.keymap.set('n', '<F11>', function()
+  require('dap').step_into()
+end)
+vim.keymap.set('n', '<F12>', function()
+  require('dap').step_out()
+end)
+vim.keymap.set('n', '<Leader>b', function()
+  require('dap').toggle_breakpoint()
+end)
+vim.keymap.set({ 'n', 'v' }, '<Leader>dh', function()
+  require('dap.ui.widgets').hover()
+end)
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -264,6 +286,18 @@ vim.filetype.add {
     fsx = 'fsharp',
   },
 }
+
+-- petteri. create the
+vim.api.nvim_create_autocmd('BufWritePre', {
+  callback = function(args)
+    local clients = vim.lsp.get_clients { bufnr = args.buf }
+    for _, client in pairs(clients) do
+      if client.name == 'fsautocomplete' then
+        return -- do nothing → blocks willSave edits
+      end
+    end
+  end,
+})
 
 -- petteri add isabelle filetype
 vim.filetype.add {
@@ -353,12 +387,25 @@ require('lazy').setup({
       },
     },
   },
+  -- petteri start of the java debug plugin
+  {
+    'mfussenegger/nvim-dap',
+  },
   -- petteri start of the java plugin. previous problems that program root was in the wrong folder, so setting the searchclient readme here
   {
     'mfussenegger/nvim-jdtls',
+    dependencies = {
+      'mfussenegger/nvim-dap',
+    },
     config = function()
       local jdtls = require 'jdtls'
       local jdtls_setup = require 'jdtls.setup'
+
+      -- adding some on attach for the debugger
+      on_attach = function(client, bufnr)
+        require('jdtls').setup_dap { hotcodereplace = 'auto', config_overrides = {} }
+        require('jdtls.dap').setup_dap_main_class_configs()
+      end
 
       local root_markers = {
         'readme-searchclient.txt',
@@ -378,7 +425,10 @@ require('lazy').setup({
 
           local project_name = vim.fn.fnamemodify(root_dir, ':p:h:t')
           local workspace_dir = vim.fn.stdpath 'data' .. '/jdtls-workspace/' .. project_name
-
+          -- adding this to get the java debugger
+          local bundles = {
+            vim.fn.glob(vim.fn.stdpath 'data' .. '/mason/packages/java-debug-adapter/extension/server/com.microsoft.java.debug.plugin-*.jar', true),
+          }
           local config = {
             cmd = {
               vim.fn.stdpath 'data' .. '/mason/bin/jdtls',
@@ -386,13 +436,18 @@ require('lazy').setup({
               workspace_dir,
             },
             root_dir = root_dir,
+
+            -- pass the bundles to init options
+            init_options = {
+              bundles = bundles,
+            },
             -- "." means: treat the project root directory as a source root. trying this out
             -- settings = {
             settings = {
               java = {
                 format = {
                   settings = {
-                    url = '/home/pt/.config/java/formatter.xml',
+                    url = 'file:///home/pt/dev/dotfiles/java/formatter.xml',
                     profile = 'Default',
                   },
                 },
@@ -402,8 +457,13 @@ require('lazy').setup({
               },
             },
           }
-
           jdtls.start_or_attach(config)
+
+          local client = vim.lsp.get_clients({ name = 'jdtls', bufnr = 0 })[1]
+          if client then
+            client.config.settings = config.settings
+            client.notify('workspace/didChangeConfiguration', { settings = config.settings })
+          end
         end,
       })
     end,

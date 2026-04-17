@@ -17,9 +17,9 @@
 ;; Variables
 (defvar
 ;; The key must be pressed twice in 200ms to enable repetitions. 
-tap_timeout 200 
+tap_timeout 180 
 ;; The key must be held 200ms to become a layer shift. 
-hold_timeout 200 
+hold_timeout 180
 ;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
 long_hold_timeout 300
 left-hand-keys-no-mods  ( q w e r t s d g z x v b )
