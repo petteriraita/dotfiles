@@ -81,8 +81,8 @@ If you experience any errors while trying to install kickstart, run `:checkhealt
 I hope you enjoy your Neovim journey,
 - TJ
 
-P.S. You can delete this when you're done too. It's your config now! :)
---]]
+
+
 
 -- ADD sane indentation defaults (skip the default tab of 8)
 vim.opt.expandtab = true
@@ -396,7 +396,10 @@ require('lazy').setup({
     'mfussenegger/nvim-jdtls',
     dependencies = {
       'mfussenegger/nvim-dap',
+      'rcarriga/nvim-dap-ui',
+      'nvim-neotest/nvim-nio',
     },
+
     config = function()
       local jdtls = require 'jdtls'
       local jdtls_setup = require 'jdtls.setup'
@@ -405,6 +408,20 @@ require('lazy').setup({
       on_attach = function(client, bufnr)
         require('jdtls').setup_dap { hotcodereplace = 'auto', config_overrides = {} }
         require('jdtls.dap').setup_dap_main_class_configs()
+        -- 🔴 ADD THIS HERE (not globally)
+        local dap = require 'dap'
+        local ui = require 'dapui'
+
+        require('dapui').setup()
+        dap.configurations.java = {
+          {
+            type = 'java',
+            request = 'attach',
+            name = 'Attach to SearchClient (5005)',
+            hostName = '127.0.0.1',
+            port = 5005,
+          },
+        }
       end
 
       local root_markers = {
@@ -430,6 +447,7 @@ require('lazy').setup({
             vim.fn.glob(vim.fn.stdpath 'data' .. '/mason/packages/java-debug-adapter/extension/server/com.microsoft.java.debug.plugin-*.jar', true),
           }
           local config = {
+            on_attach = on_attach, -- ✅ this line is used to bring the on attach port 5050 to use
             cmd = {
               vim.fn.stdpath 'data' .. '/mason/bin/jdtls',
               '-data',
