@@ -81,7 +81,7 @@ local rep = require('luasnip.extras').rep
 ls.add_snippets('tex', {
 
   s(
-    { trig = 'beg', snippetType = 'autosnippet', line_begin = true },
+    { trig = 'bgn', snippetType = 'autosnippet', line_begin = true },
 
     fmta(
       [[

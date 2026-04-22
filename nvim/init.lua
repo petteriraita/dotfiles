@@ -81,8 +81,8 @@ If you experience any errors while trying to install kickstart, run `:checkhealt
 I hope you enjoy your Neovim journey,
 - TJ
 
-
-
+P.S. You can delete this when you're done too. It's your config now! :)
+--]]
 
 -- ADD sane indentation defaults (skip the default tab of 8)
 vim.opt.expandtab = true
@@ -228,9 +228,6 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 -- vim.keymap.set("n", "<C-S-j>", "<C-w>J", { desc = "Move window to the lower" })
 -- vim.keymap.set("n", "<C-S-k>", "<C-w>K", { desc = "Move window to the upper" })
 
-vim.keymap.set('n', '<Leader>dr', function()
-  require('dap').repl.open()
-end)
 vim.keymap.set('n', '<F5>', function()
   require('dap').continue()
 end)
@@ -248,6 +245,12 @@ vim.keymap.set('n', '<Leader>b', function()
 end)
 vim.keymap.set({ 'n', 'v' }, '<Leader>dh', function()
   require('dap.ui.widgets').hover()
+end)
+vim.keymap.set('n', '<Leader>dr', function()
+  require('dap').repl.open()
+end)
+vim.keymap.set('n', '<Leader>dt', function()
+  require('dapui').toggle()
 end)
 
 -- [[ Basic Autocommands ]]
@@ -1123,7 +1126,7 @@ require('lazy').setup({
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
         -- languages here or re-enable it for the disabled ones.
-        local disable_filetypes = { c = true, cpp = true, fsharp = true }
+        local disable_filetypes = { c = true, fsharp = true }
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         else

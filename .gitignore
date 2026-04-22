@@ -1,1 +1,5 @@
 *.foo
+
+nvim/.codex
+nvim/.nvimlog
+

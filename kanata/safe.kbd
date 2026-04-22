@@ -17,9 +17,9 @@
 ;; Variables
 (defvar
 ;; The key must be pressed twice in 200ms to enable repetitions. 
-tap_timeout 200 
+tap_timeout 180 
 ;; The key must be held 200ms to become a layer shift. 
-hold_timeout 200 
+hold_timeout 180
 ;; Slightly higher value for typing keys, to prevent unexpected hold effect. 
 long_hold_timeout 300
 left-hand-keys-no-mods  ( q w e r t s d g z x v b )
@@ -28,11 +28,11 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (defsrc
-  1    2    3    4    5  6    7    8    9    0
-  q    w    e    r    t         y    u    i    o    p
-caps  a    s    d    f    g         h    j    k    l    ;
-  z    x    c    v    b       n    m    ,    .    /
-            lalt          spc             ralt
+          1      2      3      4      5           6      7      8      9      0
+          q      w      e      r      t           y      u      i      o      p
+   caps   a      s      d      f      g           h      j      k      l      ;
+          z      x      c      v      b           n      m      ,      .      /
+                      lalt          spc           ralt
 )
 ;; this is supposed to work as to disable the same hand mod keys from being pressed accidentally
 
@@ -42,21 +42,24 @@ caps  a    s    d    f    g         h    j    k    l    ;
 
   ;; Space-cadet thumb keys: Shift/BackSpace, AltGr/Enter.
   ;; Acts as a modifier by default, or as BackSpace/Enter when tapped separately.
-  lalt (tap-hold-press $tap_timeout $hold_timeout bspc lsft)
-  ralt  (tap-hold-release-keys $tap_timeout $hold_timeout ret ralt $right-hand-keys-no-mods)
+  lalt (tap-hold $tap_timeout $hold_timeout bspc (layer-while-held symbols))
+
+  ralt  (tap-hold $tap_timeout $hold_timeout ret (layer-while-held symbols))
 
   ;; ── modifiers / special ─────────────────────────────
   ;; left hand
   caps  (tap-hold-release-keys $tap_timeout $hold_timeout esc lctl $left-hand-keys-no-mods)
   f (tap-hold-release-keys $tap_timeout $hold_timeout f lctl $left-hand-keys-no-mods)
-  c     (tap-hold-release-keys $tap_timeout $long_hold_timeout c lsft $left-hand-keys-no-mods)
+  c     (tap-hold-release-keys $tap_timeout $hold_timeout c lsft $left-hand-keys-no-mods)
   a  (tap-hold-release-keys $tap_timeout $long_hold_timeout a lmet $left-hand-keys-no-mods)
 
   ;; right hand
   j     (tap-hold-release-keys $tap_timeout $hold_timeout j rctl $right-hand-keys-no-mods)
-  comma (tap-hold-release-keys $tap_timeout $long_hold_timeout , rsft $right-hand-keys-no-mods)
+  comma (tap-hold-release-keys $tap_timeout $hold_timeout , rsft $right-hand-keys-no-mods)
   semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
   p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
+
+
 
   ;; ── identity aliases (boring, but critical) ─────────
   s     s
@@ -76,6 +79,7 @@ caps  a    s    d    f    g         h    j    k    l    ;
 ;; Navigation layer
 (defalias
 
+
   all C-a
   sav C-s
   cls C-w
@@ -84,20 +88,88 @@ caps  a    s    d    f    g         h    j    k    l    ;
   cpy C-c
   pst C-v
 )
+
+
+;; Symbols layer (straight from arsenik lafayette, however, im not sending them ast Alt gr keycodes)
+(defalias
+
+
+
+  ;; the nordic keys
+  ;; stands for o with 2 dots
+  oddots (unicode ö)
+  addots (unicode ä)
+  awithring (unicode å)   ;; a with ring
+  ae (unicode æ)
+  oslash (unicode ø)
+
+  ^  S-6
+  <  S-,
+  >  S-.
+  $  S-4
+  %  S-5
+  @  S-2
+  &  S-7
+  *  S-8
+  '  '
+  `  `
+
+  {  S-[
+  pl S-9
+  pr S-0
+  }  S-]
+  =  =
+  \  \
+  +  S-=
+  -  -
+  /  /
+  '' S-'
+
+  ~  S-`
+  [  [
+  ]  ]
+  _  S--
+  #  S-3
+  |  S-\
+  !  S-1
+  ;  ;
+  :  S-;
+  ?  S-/
+)
+
+;; (deflayer empty
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;    XX     XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;           XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
+;;                XX          XX           XX
+;; )
+
+
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer base
-  1    2    3    4    5    6    7    8    9    0
-  q    w    e    r    t         y    u    i    o    @p
-  @caps @a   @s   @d   @f   g         h    @j   @k   @l   @semi
-  @z    @x   @c   @v   @b     @n   @m   @comma @dot  /
-          @lalt          @nav           @ralt
+          1      2      3      4      5           6      7      8      9      0
+          q      w      e      r      t           y      u      i      o      @p
+   @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
+          @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
+                       @lalt          @nav            @ralt
+)
+
+;; 10, 10, 10 +1, 10, 3 ==> 44
+(deflayer navigation
+          XX     XX     XX     XX     XX          XX     XX     XX     XX     XX
+          XX     XX     XX     XX     XX          home   pgdn   pgup   end    _
+   _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
+          @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
+                       _            _             _
 )
 
 
-(deflayer navigation
-    XX   XX   XX   XX   XX        XX   XX   XX   XX   XX
-    XX   XX   XX   XX   XX        home pgdn pgup end   _
- _ @all   @cpy @pst  _    XX        lft  down up   rght XX
-    @ndo   XX   _   XX    XX        XX   XX   XX   XX   XX
-              _            _            _
+;; 10, 10, 10 +1, 10, 3 ==> 44
+(deflayer symbols
+         @awithring    @ae        @addots    @oslash          @oddots    XX    XX    XX     XX    XX
+         @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
+    _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
+         @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
+                _            spc             _
 )

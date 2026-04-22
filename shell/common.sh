@@ -188,6 +188,7 @@ alias calc='code /home/petteri/development_files/python_gre/calulator.ipynb'
 alias jpamb='code development_files/dtu/program_analysis/jpamb/'
 alias py='python3'
 alias ca='conda activate'
+alias thyconvert='/home/pt/dev/dtu_spring_2026/02256_Automated_Reasoning/converter.py'
 
 ## GIT
 alias gs='git status'
