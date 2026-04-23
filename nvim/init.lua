@@ -287,8 +287,16 @@ vim.filetype.add {
   extension = {
     fs = 'fsharp',
     fsx = 'fsharp',
+    hyg = 'fsharp',
   },
 }
+
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'fsharp',
+  callback = function(args)
+    pcall(vim.treesitter.start, args.buf, 'fsharp')
+  end,
+})
 
 -- petteri. create the
 vim.api.nvim_create_autocmd('BufWritePre', {
@@ -335,12 +343,6 @@ vim.api.nvim_create_autocmd('FileType', {
 vim.filetype.add {
   extension = {
     thy = 'isabelle',
-  },
-}
--- petteri add hygge filetype
-vim.filetype.add {
-  extension = {
-    hyg = 'hyg',
   },
 }
 -- add the file type tex, and make it so that wrapping is word, not byte based
@@ -1147,6 +1149,15 @@ require('lazy').setup({
           },
         },
         fsautocomplete = {
+          root_dir = function(bufnr, on_dir)
+            local fname = vim.api.nvim_buf_get_name(bufnr)
+            if fname:match '%.hyg$' then
+              return
+            end
+
+            local util = require 'lspconfig.util'
+            on_dir(util.root_pattern('*.sln', '*.slnx', '*.fsproj', '.git')(fname))
+          end,
           on_attach = function(client, bufnr)
             client.server_capabilities.documentFormattingProvider = false
           end,
@@ -1181,7 +1192,7 @@ require('lazy').setup({
         ensure_installed = {}, -- explicitly set to an empty table (Kickstart populates installs via mason-tool-installer)
         automatic_installation = false,
         automatic_enable = {
-          exclude = { 'jdtls' },
+          exclude = { 'jdtls', 'fsautocomplete' },
         },
         handlers = {
           -- default handler
@@ -1195,6 +1206,8 @@ require('lazy').setup({
           end,
         },
       }
+      vim.lsp.config('fsautocomplete', servers.fsautocomplete)
+      vim.lsp.enable 'fsautocomplete'
       -- Start Isabelle LSP manually (not managed by Mason)
       vim.lsp.enable 'isabelle'
     end,
@@ -1443,11 +1456,9 @@ require('lazy').setup({
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
     build = ':TSUpdate',
-    -- trying out to uncomment the line below to make the config not happen?
-    -- main = 'nvim-treesitter.configs', -- Sets main module to use for opts
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
-      ensure_installed = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
+      ensure_installed = { 'bash', 'c', 'diff', 'fsharp', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
       -- Autoinstall languages that are not installed
       auto_install = true,
       highlight = {
