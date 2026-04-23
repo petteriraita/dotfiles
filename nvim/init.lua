@@ -302,6 +302,35 @@ vim.api.nvim_create_autocmd('BufWritePre', {
   end,
 })
 
+-- Add an autocommand to add the mappings in Isabelle
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'isabelle',
+  callback = function(args)
+    local function iabbrev(lhs, rhs)
+      vim.cmd(('iabbrev <buffer> %s %s'):format(lhs, rhs))
+    end
+
+    iabbrev(';a', '⇒')
+    iabbrev(';A', '⟹')
+    iabbrev(';i', '⟶')
+    iabbrev(';n', '¬')
+    iabbrev(';w', '∧')
+    iabbrev(';v', '∨')
+    iabbrev(';f', '∀')
+    iabbrev(';e', '∃')
+    iabbrev(';t', '⊢')
+    iabbrev(';b', '⊥')
+    iabbrev(';T', '⊤')
+    iabbrev(';l', 'λ')
+    iabbrev(';q', '⟷')
+    iabbrev(';s', '⊆')
+    iabbrev(';m', '∈')
+    iabbrev(';M', '∉')
+    iabbrev(';o', '‹')
+    iabbrev(';c', '›')
+    iabbrev(';g', '⪢')
+  end,
+})
 -- petteri add isabelle filetype
 vim.filetype.add {
   extension = {
@@ -393,6 +422,28 @@ require('lazy').setup({
   -- petteri start of the java debug plugin
   {
     'mfussenegger/nvim-dap',
+    -- add the DAP for fsharp
+    config = function()
+      local dap = require 'dap'
+
+      dap.adapters.coreclr = {
+        type = 'executable',
+        command = vim.fn.exepath 'netcoredbg',
+        args = { '--interpreter=vscode' },
+      }
+
+      dap.configurations.fsharp = {
+        {
+          type = 'coreclr',
+          name = 'launch project dll',
+          request = 'launch',
+          program = function()
+            return vim.fn.input('Path to dll: ', vim.fn.getcwd() .. '/bin/Debug/', 'file')
+          end,
+          cwd = '${workspaceFolder}',
+        },
+      }
+    end,
   },
   -- petteri start of the java plugin. previous problems that program root was in the wrong folder, so setting the searchclient readme here
   {
@@ -1447,10 +1498,6 @@ local function remove_isabelle_fake_buffers()
     end
   end
 end
-
-vim.keymap.set('n', '<leader>id', remove_isabelle_fake_buffers, {
-  desc = 'Delete fake Isabelle buffers',
-})
 
 vim.api.nvim_create_autocmd({ 'BufWinEnter', 'BufAdd' }, {
   callback = function()
