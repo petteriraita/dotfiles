@@ -422,25 +422,72 @@ require('lazy').setup({
   -- petteri start of the java debug plugin
   {
     'mfussenegger/nvim-dap',
+    dependencies = {
+      'rcarriga/nvim-dap-ui',
+      'nvim-neotest/nvim-nio',
+    },
     -- add the DAP for fsharp
     config = function()
       local dap = require 'dap'
+      local dapui = require 'dapui'
+      local netcoredbg = vim.fn.exepath 'netcoredbg'
+
+      if netcoredbg == '' then
+        local mason_netcoredbg = vim.fn.stdpath 'data' .. '/mason/bin/netcoredbg'
+        if vim.fn.executable(mason_netcoredbg) == 1 then
+          netcoredbg = mason_netcoredbg
+        end
+      end
+
+      if netcoredbg == '' then
+        vim.notify('netcoredbg not found in PATH or Mason; install it before starting the F# debugger', vim.log.levels.WARN)
+      end
+
+      local find_hyggec_root = function()
+        local current_file = vim.api.nvim_buf_get_name(0)
+        local start = current_file ~= '' and vim.fs.dirname(current_file) or vim.fn.getcwd()
+        return vim.fs.root(start, { 'hyggec.fsproj', '.git' }) or vim.fn.getcwd()
+      end
+
+      dapui.setup {
+        controls = {
+          enabled = false,
+        },
+      }
 
       dap.adapters.coreclr = {
         type = 'executable',
-        command = vim.fn.exepath 'netcoredbg',
+        command = netcoredbg,
         args = { '--interpreter=vscode' },
       }
 
       dap.configurations.fsharp = {
         {
           type = 'coreclr',
-          name = 'launch project dll',
+          name = 'hyggec launch',
           request = 'launch',
           program = function()
-            return vim.fn.input('Path to dll: ', vim.fn.getcwd() .. '/bin/Debug/', 'file')
+            return vim.fn.input('Path to dll: ', find_hyggec_root() .. '/bin/Debug/net10.0/hyggec.dll', 'file')
           end,
-          cwd = '${workspaceFolder}',
+          args = function()
+            local command = vim.fn.input('hyggec command: ', 'rars')
+            local opts = vim.fn.input('extra args: ', '--verbose')
+            local current_file = vim.api.nvim_buf_get_name(0)
+            local default_file = current_file:match '%.hyg$' and current_file or ''
+            local file = vim.fn.input('Hygge file: ', default_file, 'file')
+            local args = {}
+            if command ~= '' then
+              vim.list_extend(args, vim.split(command, '%s+', { trimempty = true }))
+            end
+            if opts ~= '' then
+              vim.list_extend(args, vim.split(opts, '%s+', { trimempty = true }))
+            end
+            table.insert(args, file)
+            return args
+          end,
+          cwd = find_hyggec_root,
+          console = 'integratedTerminal',
+          stopAtEntry = false,
         },
       }
     end,
@@ -462,11 +509,7 @@ require('lazy').setup({
       on_attach = function(client, bufnr)
         require('jdtls').setup_dap { hotcodereplace = 'auto', config_overrides = {} }
         require('jdtls.dap').setup_dap_main_class_configs()
-        -- 🔴 ADD THIS HERE (not globally)
         local dap = require 'dap'
-        local ui = require 'dapui'
-
-        require('dapui').setup()
         dap.configurations.java = {
           {
             type = 'java',
