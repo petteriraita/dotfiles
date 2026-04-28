@@ -32,7 +32,9 @@ source <(fzf --zsh)
 
 # vi mode
 bindkey -v
-export KEYTIMEOUT=20
+# KEYTIMEOUT is in hundredths of a second. Too small a value can make
+# terminal escape sequences, including bracketed paste, get split in vi mode.
+export KEYTIMEOUT=10
 
 # Use vim keys in tab complete menu:
 bindkey -M menuselect 'h' vi-backward-char
@@ -43,33 +45,43 @@ bindkey -v '^?' backward-delete-char
 # use the alt . to put old words back
 bindkey -M viins '^[.' insert-last-word
 
-## make visual-mode yank copy to X11 clipboard
-autoload -Uz copy-region-as-kill
-zle -N yank-to-clipboard
-
-yank-to-clipboard() {
-  zle copy-region-as-kill
-  print -rn -- "$CUTBUFFER" | xclip -selection clipboard
+zle-copy-cutbuffer-to-clipboard() {
+  (( $+commands[xclip] )) && print -rn -- "$CUTBUFFER" | xclip -selection clipboard
 }
 
-bindkey -M vicmd 'y' yank-to-clipboard
-bindkey -M visual 'y' yank-to-clipboard
+vi-yank-to-clipboard() {
+  zle .vi-yank
+  zle-copy-cutbuffer-to-clipboard
+}
+zle -N vi-yank-to-clipboard
+
+vi-yank-whole-line-to-clipboard() {
+  zle .vi-yank-whole-line
+  zle-copy-cutbuffer-to-clipboard
+}
+zle -N vi-yank-whole-line-to-clipboard
+
+bindkey -M vicmd 'y' vi-yank-to-clipboard
+bindkey -M visual 'y' vi-yank-to-clipboard
+bindkey -M vicmd 'Y' vi-yank-whole-line-to-clipboard
+bindkey -M visual 'Y' vi-yank-whole-line-to-clipboard
 
 
 # Change cursor shape for different vi modes.
 function zle-keymap-select {
   case $KEYMAP in
     vicmd)
-      echo -ne '\e[1 q'   # block
+      printf '\e[1 q'   # block
       ;;
     viins|main)
-      echo -ne '\e[5 q'   # beam
+      printf '\e[5 q'   # beam
       ;;
   esac
 }
 zle -N zle-keymap-select
 zle-line-init() {
   zle -K viins
+  printf '\e[5 q'
 }
 zle -N zle-line-init
 
@@ -95,4 +107,3 @@ zle -N zle-line-init
 
 # Load zsh-syntax-highlighting; should be last.
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh 2>/dev/null
-print "ZSHRC LOADED"
