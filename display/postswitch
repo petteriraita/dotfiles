@@ -3,89 +3,150 @@ set -euo pipefail
 
 INTERNAL="eDP-1"
 STATE_FILE="/tmp/display_state"
+LOCK_FILE="/tmp/display_postswitch.lock"
 
-safenotify.sh "the postswitch runs!!"
-safenotify.sh "previous_state file status before running $(cat "$STATE_FILE")"
+exec 9>"$LOCK_FILE"
+if ! flock -n 9; then
+    safenotify.sh "DISPLAY CONNECTION: postswitch already running"
+    exit 0
+fi
+
+log() {
+    safenotify.sh "$1"
+}
+
+read_state() {
+    cat "$STATE_FILE" 2>/dev/null || echo "unset"
+}
+
+get_connected_external_signature() {
+    local connectors=()
+    local connector_name=""
+
+    for s in /sys/class/drm/card*-*/status; do
+        if grep -qx connected "$s"; then
+            connector_name="${s%/status}"
+            connector_name="${connector_name##*/}"
+            if [[ "$connector_name" != *"$INTERNAL"* ]]; then
+                connectors+=("$connector_name")
+            fi
+        fi
+    done
+
+    if ((${#connectors[@]} == 0)); then
+        echo "internal-only"
+        return
+    fi
+
+    printf '%s\n' "${connectors[@]}" | sort | paste -sd ',' -
+}
+
+get_active_external_output() {
+    i3-msg -t get_outputs |
+        jq -r '.[] | select(.active == true and .name != "'"$INTERNAL"'") | .name' |
+        head -n 1
+}
+
+move_workspaces_preserving_focus() {
+    local target_external="$1"
+    local focused_workspace=""
+
+    focused_workspace="$(i3-msg -t get_workspaces | jq -r '.[] | select(.focused == true) | .name' | head -n 1)"
+
+    if [[ -n "$target_external" ]]; then
+        # Keep workspace 9 on the laptop panel, then move higher-numbered
+        # workspaces first so any replacement empty workspace i3 creates on the
+        # internal output walks upward toward 9 instead of getting stuck at 2/3.
+        i3-msg "workspace number 9; move workspace to output $INTERNAL; workspace number 9" >/dev/null
+        for i in {8..1}; do
+            i3-msg "workspace number $i; move workspace to output $target_external" >/dev/null
+        done
+    else
+        for i in {1..9}; do
+            i3-msg "workspace number $i; move workspace to output $INTERNAL" >/dev/null
+        done
+    fi
+
+    if [[ -n "$focused_workspace" ]]; then
+        i3-msg "workspace $focused_workspace" >/dev/null
+    fi
+}
+
+log "the postswitch runs!!"
+log "previous_state file status before running $(read_state)"
 
 check_if_only_charging_cable() {
-	safenotify.sh "DISPLAY CONNECTION: charger function called"
+    local current_state=""
+    local previous_state=""
 
-	sleep 0.5
+    log "DISPLAY CONNECTION: charger function called"
+    sleep 0.5
 
-	# current state 0 means only internal monitor
-	current_state=0
-	safenotify.sh "previous_state file status after running $(cat "$STATE_FILE")"
+    current_state="$(get_connected_external_signature)"
+    previous_state="$(read_state)"
+    log "previous_state file status after running $previous_state"
+    log "DISPLAY CONNECTION: current_state signature = $current_state"
 
-	# loop through every single possible DP-card
-	for s in /sys/class/drm/card*-*/status; do
-		# check if the status is connected. check if the whole line is "connected". nothing else will match
-		if grep -qx connected "$s"; then
-			safenotify.sh "cards_connected: ${s}"
-			# exclude the edp-1 from the external monitors
-			if [[ "$s" != *"$INTERNAL"* ]]; then
-				# current state 1 means connected to an external monitor
-				current_state=1
-			fi
-		fi
-	done
+    if [[ "$current_state" == "$previous_state" ]]; then
+        log "DISPLAY CONNECTION: previous_state signature = $previous_state"
+        log "DISPLAY CONNECTION: charger added - no action"
+        return 0
+    fi
 
-	previous_state=$(cat "$STATE_FILE" 2>/dev/null || echo "unset")
-
-	if [[ "$current_state" == "$previous_state" ]]; then
-		safenotify.sh "DISPLAY CONNECTION: current_state = $current_state"
-		safenotify.sh "DISPLAY CONNECTION: previous_state = $previous_state"
-
-		safenotify.sh "DISPLAY CONNECTION: charger added - no action"
-		return 0
-	fi
-
-	echo "$current_state" >"$STATE_FILE"
-	return 1
+    echo "$current_state" >"$STATE_FILE"
+    log "DISPLAY CONNECTION: updated state file to $current_state"
+    return 1
 }
 
 switch_monitors() {
-	# you could also use jq and use actual_dp here for in case the connection does not work perfect
-	# the reason actual_dp is used in the first place is because the DP-3 etc, might how
-	EXTERNAL="$(xrandr | awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}' || true)"
+    local external=""
+    local actual_dp=""
 
-	if [[ -z "$EXTERNAL" ]]; then
-		# mobile geometry
-		safenotify.sh "DISPLAY CONNECTION: switching display to mobile"
+    # you could also use jq and use actual_dp here for in case the connection does not work perfect
+    # the reason actual_dp is used in the first place is because the DP-3 etc, might how
+    external="$(xrandr | awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}' || true)"
 
-		# disabling the other connected and disconnected displays
-		for out in $(xrandr | awk '/ connected| disconnected/ {print $1}'); do
-			[[ "$out" != "$INTERNAL" ]] && xrandr --output "$out" --off
-		done
-		xrandr --output "$INTERNAL" --auto --primary
-		for i in {1..9}; do
-			i3-msg "workspace $i; move workspace to output $INTERNAL" >/dev/null
-		done
-		xrandr --output "$INTERNAL" --auto --primary --pos 0x0
-		xrandr --fb 1920x1200
+    if [[ -z "$external" ]]; then
+        # mobile geometry
+        log "DISPLAY CONNECTION: switching display to mobile"
 
-	else
-		# giving i3 time to change the geometry to the docked status
-		for _ in {1..10}; do
-			actual_dp=$(i3-msg -t get_outputs | jq -r '.[] | select(.active == true and .name != "'"$INTERNAL"'") | .name')
-			[[ -n "$actual_dp" ]] && break
-			sleep 0.2
-		done
+        # disabling the other connected and disconnected displays
+        for out in $(xrandr | awk '/ connected| disconnected/ {print $1}'); do
+            [[ "$out" != "$INTERNAL" ]] && xrandr --output "$out" --off
+        done
+        xrandr --output "$INTERNAL" --auto --primary
+        xrandr --output "$INTERNAL" --auto --primary --pos 0x0
+        xrandr --fb 1920x1200
+        move_workspaces_preserving_focus ""
 
-		safenotify.sh "DISPLAY CONNECTION: switching display to EXTERNAL = $EXTERNAL"
-		# docked geometry
-		xrandr --output "$EXTERNAL" --auto --above "$INTERNAL"
-		xrandr --output "$INTERNAL" --auto --primary
-		for i in {1..8}; do
-			i3-msg "workspace $i; move workspace to output $actual_dp" >/dev/null
-		done
-		i3-msg "workspace 9; move workspace to output $INTERNAL" >/dev/null
-	fi
+    else
+        log "DISPLAY CONNECTION: xrandr external candidate = $external"
+
+        xrandr --output "$external" --auto --above "$INTERNAL"
+        xrandr --output "$INTERNAL" --auto --primary
+        for out in $(xrandr | awk '/ connected| disconnected/ {print $1}'); do
+            [[ "$out" != "$INTERNAL" && "$out" != "$external" ]] && xrandr --output "$out" --off
+        done
+
+        # giving i3 time to change the geometry to the docked status
+        for _ in {1..10}; do
+            actual_dp="$(get_active_external_output)"
+            [[ -n "$actual_dp" ]] && break
+            sleep 0.2
+        done
+        actual_dp="${actual_dp:-$external}"
+
+        log "DISPLAY CONNECTION: switching display to EXTERNAL = $external"
+        log "DISPLAY CONNECTION: active i3 external = $actual_dp"
+        # docked geometry
+        move_workspaces_preserving_focus "$actual_dp"
+    fi
 }
 
 ## if the charging check returns true, dont do anything
 if check_if_only_charging_cable; then
-	## exit successfully without doing anything
-	exit 0
+    ## exit successfully without doing anything
+    exit 0
 else
-	switch_monitors
+    switch_monitors
 fi
