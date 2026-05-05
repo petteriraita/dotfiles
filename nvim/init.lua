@@ -313,30 +313,35 @@ vim.api.nvim_create_autocmd('BufWritePre', {
 -- Add an autocommand to add the mappings in Isabelle
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'isabelle',
-  callback = function(args)
-    local function iabbrev(lhs, rhs)
-      vim.cmd(('iabbrev <buffer> %s %s'):format(lhs, rhs))
+  callback = function()
+    local function imap(lhs, rhs)
+      vim.keymap.set('i', lhs, rhs, {
+        buffer = true,
+        noremap = true,
+        silent = true,
+        desc = 'Isabelle symbol ' .. rhs,
+      })
     end
 
-    iabbrev(';a', '⇒')
-    iabbrev(';A', '⟹')
-    iabbrev(';i', '⟶')
-    iabbrev(';n', '¬')
-    iabbrev(';w', '∧')
-    iabbrev(';v', '∨')
-    iabbrev(';f', '∀')
-    iabbrev(';e', '∃')
-    iabbrev(';t', '⊢')
-    iabbrev(';b', '⊥')
-    iabbrev(';T', '⊤')
-    iabbrev(';l', 'λ')
-    iabbrev(';q', '⟷')
-    iabbrev(';s', '⊆')
-    iabbrev(';m', '∈')
-    iabbrev(';M', '∉')
-    iabbrev(';o', '‹')
-    iabbrev(';c', '›')
-    iabbrev(';g', '⪢')
+    imap(';a', '⇒')
+    imap(';A', '⟹')
+    imap(';i', '⟶')
+    imap(';n', '¬')
+    imap(';w', '∧')
+    imap(';v', '∨')
+    imap(';f', '∀')
+    imap(';e', '∃')
+    imap(';t', '⊢')
+    imap(';b', '⊥')
+    imap(';T', '⊤')
+    imap(';l', 'λ')
+    imap(';q', '⟷')
+    imap(';s', '⊆')
+    imap(';m', '∈')
+    imap(';M', '∉')
+    imap(';o', '‹')
+    imap(';c', '›')
+    imap(';g', '⪢')
   end,
 })
 -- petteri add isabelle filetype
@@ -468,11 +473,15 @@ require('lazy').setup({
           type = 'coreclr',
           name = 'hyggec launch',
           request = 'launch',
+          -- this previous program would always ask you to confirm the location of the DLL
+          -- program = function()
+          --   return vim.fn.input('Path to dll: ', find_hyggec_root() .. '/bin/Debug/net10.0/hyggec.dll', 'file')
+          -- end,
           program = function()
-            return vim.fn.input('Path to dll: ', find_hyggec_root() .. '/bin/Debug/net10.0/hyggec.dll', 'file')
+            return find_hyggec_root() .. '/bin/Debug/net10.0/hyggec.dll'
           end,
           args = function()
-            local command = vim.fn.input('hyggec command: ', 'rars')
+            local command = vim.fn.input('hyggec command: ', 'interpret')
             local opts = vim.fn.input('extra args: ', '--verbose')
             local current_file = vim.api.nvim_buf_get_name(0)
             local default_file = current_file:match '%.hyg$' and current_file or ''
@@ -492,6 +501,44 @@ require('lazy').setup({
           stopAtEntry = false,
         },
       }
+      -- C / C++ / Rust debugger via codelldb
+      local codelldb = vim.fn.exepath 'codelldb'
+
+      if codelldb == '' then
+        local mason_codelldb = vim.fn.stdpath 'data' .. '/mason/bin/codelldb'
+        if vim.fn.executable(mason_codelldb) == 1 then
+          codelldb = mason_codelldb
+        end
+      end
+
+      if codelldb == '' then
+        vim.notify('codelldb not found in PATH or Mason; install it with :MasonInstall codelldb', vim.log.levels.WARN)
+      end
+
+      dap.adapters.codelldb = {
+        type = 'server',
+        port = '${port}',
+        executable = {
+          command = codelldb,
+          args = { '--port', '${port}' },
+        },
+      }
+
+      dap.configurations.cpp = {
+        {
+          name = 'Launch executable',
+          type = 'codelldb',
+          request = 'launch',
+          program = function()
+            return vim.fn.input('Path to executable: ', vim.fn.getcwd() .. '/', 'file')
+          end,
+          cwd = '${workspaceFolder}',
+          stopOnEntry = false,
+        },
+      }
+
+      dap.configurations.c = dap.configurations.cpp
+      dap.configurations.rust = dap.configurations.cpp
     end,
   },
   -- petteri start of the java plugin. previous problems that program root was in the wrong folder, so setting the searchclient readme here
@@ -693,13 +740,19 @@ require('lazy').setup({
           ['text_tfree'] = 'Type',
         },
       }
+      vim.lsp.config(
+        'isabelle',
+        vim.tbl_deep_extend('force', vim.lsp.config.isabelle or {}, {
+          capabilities = require('blink.cmp').get_lsp_capabilities(),
+        })
+      )
     end,
   },
-  -- Petteri, add the isabelle syntax plugin
-  {
-    'ThreeFx/isabelle.vim',
-    ft = 'isabelle',
-  },
+  -- -- Petteri, add the isabelle syntax plugin
+  -- {
+  --   'ThreeFx/isabelle.vim',
+  --   ft = 'isabelle',
+  -- },
 
   -- Petteri, add a color theme plugin
   {
@@ -1209,6 +1262,7 @@ require('lazy').setup({
       vim.lsp.config('fsautocomplete', servers.fsautocomplete)
       vim.lsp.enable 'fsautocomplete'
       -- Start Isabelle LSP manually (not managed by Mason)
+      --
       vim.lsp.enable 'isabelle'
     end,
   },
@@ -1451,6 +1505,8 @@ require('lazy').setup({
 
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
+      -- adding this one to have the jumps
+      require('mini.jump2d').setup()
     end,
   },
   { -- Highlight, edit, and navigate code
