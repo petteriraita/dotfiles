@@ -1283,6 +1283,17 @@ require('lazy').setup({
     },
     opts = {
       notify_on_error = true,
+      formatters = {
+        google_java_format = {
+          command = 'java',
+          args = {
+            '-jar',
+            '/home/pt/dev/multiagent_repos/02285_group_37_2026/google-java-format-1.35.0-all-deps.jar',
+            '-',
+          },
+          stdin = true,
+        },
+      },
       format_on_save = function(bufnr)
         -- Disable "format_on_save lsp_fallback" for languages that don't
         -- have a well standardized coding style. You can add additional
@@ -1298,6 +1309,7 @@ require('lazy').setup({
         end
       end,
       formatters_by_ft = {
+        java = { 'google_java_format' },
         lua = { 'stylua' },
         python = {},
         -- python = { 'ruff_format' },
