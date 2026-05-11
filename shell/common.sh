@@ -96,11 +96,11 @@ md2pdf() {
     pandoc "$1" -o "${1%.md}.pdf" --pdf-engine=xelatex -V fontsize=12pt
 }
 
-s() {
-    # so if you need to pass the page options etc. use this function
-    sioyek "$@" >/dev/null 2>&1 &
-    disown
-}
+# s() {
+#     # so if you need to pass the page options etc. use this function
+#     sioyek "$@" >/dev/null 2>&1 &
+#     disown
+# }
 x() {
     case $# in
     # 0) echo "got the input of 0 args" ;;

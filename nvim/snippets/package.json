@@ -5,6 +5,7 @@
       { "language": ["python"], "path": "./python.json" },
       { "language": ["java"],   "path": "./java.json" },
       { "language": ["cpp"],    "path": "./cpp.json" },
+      { "language": ["fsharp"],    "path": "./fsharp.json" },
       { "language": ["tex", "latex"], "path": "./latex.json" }
     ]
   }

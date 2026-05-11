@@ -1,0 +1,30 @@
+{
+  "Show variable": {
+    "prefix": "cl",
+    "body": [
+      "printfn \"%A\" $1"
+    ],
+    "description": "Print variable with label"
+  },
+  "Print newline variable": {
+    "prefix": "clvn",
+    "body": [
+      "printfn \"$1:\\n%A\" $1"
+    ],
+    "description": "Print variable with newline before value"
+  },
+  "Print type variable": {
+    "prefix": "clvt",
+    "body": [
+      "printfn \"type($1): %s\" ($1.GetType().FullName)"
+    ],
+    "description": "Print type of variable"
+  },
+  "Print variable": {
+    "prefix": "clv",
+    "body": [
+      "printfn \"$1: %A\" $1"
+    ],
+    "description": "Print variable"
+  }
+}

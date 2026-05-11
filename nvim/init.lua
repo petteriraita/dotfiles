@@ -253,6 +253,10 @@ vim.keymap.set('n', '<Leader>dt', function()
   require('dapui').toggle()
 end)
 
+-- Oil keymaps
+--
+vim.keymap.set('n', '-', '<cmd>Oil<CR>')
+
 -- [[ Basic Autocommands ]]
 --  See `:help lua-guide-autocommands`
 
@@ -297,7 +301,6 @@ vim.api.nvim_create_autocmd('FileType', {
     pcall(vim.treesitter.start, args.buf, 'fsharp')
   end,
 })
-
 -- petteri. create the
 vim.api.nvim_create_autocmd('BufWritePre', {
   callback = function(args)
@@ -410,6 +413,17 @@ require('lazy').setup({
       require('nvim-autopairs').setup {}
     end,
   },
+  {
+    'stevearc/oil.nvim',
+    ---@module 'oil'
+    ---@type oil.SetupOpts
+    opts = {},
+    -- Optional dependencies
+    dependencies = { { 'nvim-mini/mini.icons', opts = {} } },
+    -- dependencies = { "nvim-tree/nvim-web-devicons" }, -- use if you prefer nvim-web-devicons
+    -- Lazy loading is not recommended because it is very tricky to make it work correctly in all situations.
+    lazy = false,
+  },
   -- Petteri --- the image plugin
   {
     '3rd/image.nvim',
@@ -481,11 +495,13 @@ require('lazy').setup({
             return find_hyggec_root() .. '/bin/Debug/net10.0/hyggec.dll'
           end,
           args = function()
-            local command = vim.fn.input('hyggec command: ', 'interpret')
+            local command = vim.fn.input('hyggec command: ', 'typecheck')
+            local use_default = true
             local opts = vim.fn.input('extra args: ', '--verbose')
-            local current_file = vim.api.nvim_buf_get_name(0)
-            local default_file = current_file:match '%.hyg$' and current_file or ''
+
+            local default_file = '/home/pt/dev/hyggec-full/tests/codegen/pass/152-recursive-functions-basic.hyg'
             local file = vim.fn.input('Hygge file: ', default_file, 'file')
+
             local args = {}
             if command ~= '' then
               vim.list_extend(args, vim.split(command, '%s+', { trimempty = true }))
@@ -553,21 +569,36 @@ require('lazy').setup({
     config = function()
       local jdtls = require 'jdtls'
       local jdtls_setup = require 'jdtls.setup'
+      local current_project_name = nil
 
       -- adding some on attach for the debugger
       on_attach = function(client, bufnr)
         require('jdtls').setup_dap { hotcodereplace = 'auto', config_overrides = {} }
         require('jdtls.dap').setup_dap_main_class_configs()
         local dap = require 'dap'
-        dap.configurations.java = {
-          {
+        dap.configurations.java = dap.configurations.java or {}
+
+        local has_attach_config = false
+        for _, config in ipairs(dap.configurations.java) do
+          if config.name == 'Attach to SearchClient (5005)' then
+            config.hostName = '127.0.0.1'
+            config.port = 5005
+            config.projectName = current_project_name
+            has_attach_config = true
+            break
+          end
+        end
+
+        if not has_attach_config then
+          table.insert(dap.configurations.java, {
             type = 'java',
             request = 'attach',
             name = 'Attach to SearchClient (5005)',
             hostName = '127.0.0.1',
             port = 5005,
-          },
-        }
+            projectName = current_project_name,
+          })
+        end
       end
 
       local root_markers = {
@@ -586,7 +617,8 @@ require('lazy').setup({
             return
           end
 
-          local project_name = vim.fn.fnamemodify(root_dir, ':p:h:t')
+          local project_name = vim.fn.fnamemodify(root_dir, ':p:t')
+          current_project_name = project_name
           local workspace_dir = vim.fn.stdpath 'data' .. '/jdtls-workspace/' .. project_name
           -- adding this to get the java debugger
           local bundles = {
@@ -979,7 +1011,14 @@ require('lazy').setup({
       'WhoIsSethDaniel/mason-tool-installer.nvim',
 
       -- Useful status updates for LSP.
-      { 'j-hui/fidget.nvim', opts = {} },
+      {
+        'j-hui/fidget.nvim',
+        opts = {
+          progress = {
+            ignore = { 'fsautocomplete' },
+          },
+        },
+      },
 
       -- Allows extra capabilities provided by blink.cmp
       'saghen/blink.cmp',
@@ -1302,8 +1341,9 @@ require('lazy').setup({
         if disable_filetypes[vim.bo[bufnr].filetype] then
           return nil
         else
+          local filetype = vim.bo[bufnr].filetype
           return {
-            timeout_ms = 500,
+            timeout_ms = filetype == 'java' and 3000 or 500,
             lsp_format = 'fallback',
           }
         end
