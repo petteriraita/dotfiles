@@ -34,16 +34,22 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           z      x      c      v      b           n      m      ,      .      /
                       lalt          spc           ralt
 )
-;; this is supposed to work as to disable the same hand mod keys from being pressed accidentally
+
+
+
+
 
 (defalias
- ;; Main mod-tap: Nav layer when held, Space when tapped.
- nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
+  ;; Main mod-tap: Nav layer when held, Space when tapped.
+  nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
+  
+  ;; numpad layer
+  v (tap-hold $tap_timeout $long_hold_timeout v (layer-while-held numpad))
 
-  ;; Space-cadet thumb keys: Shift/BackSpace, AltGr/Enter.
-  ;; Acts as a modifier by default, or as BackSpace/Enter when tapped separately.
+  ;; Acts as a modifier by default, or as BackSpace
   lalt (tap-hold $tap_timeout $hold_timeout bspc (layer-while-held symbols))
 
+  ;; Acts as a modifier by default and Enter when tapped separately.
   ralt  (tap-hold $tap_timeout $hold_timeout ret (layer-while-held symbols))
 
   ;; ── modifiers / special ─────────────────────────────
@@ -66,16 +72,13 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   d     d
   k     k
   l     l
-
   z     z
   x     x
-  v     v
   b     b
   n     n
   m     m
   dot   .
 )
-
 ;; Navigation layer
 (defalias
 
@@ -162,6 +165,14 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
    _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
                        _            _             _
+)
+;; 10, 10, 10 +1, 10, 3 ==> 44
+(deflayer numpad
+          XX   XX   XX   XX   XX        XX    XX   XX   XX  XX
+          XX   XX   XX   XX   XX        XX    1    2    3   XX
+   XX     XX   XX   XX   XX   XX        del   4    5    6   0
+          XX   XX   XX   XX   XX        XX    7    8    9   XX
+               XX          XX           XX
 )
 
 
