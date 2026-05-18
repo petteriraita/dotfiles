@@ -1,4 +1,8 @@
 {  
+  "Setminus": {
+    "prefix": "sm",
+    "body": "\\setminus $0"
+  },
   "Fraction": {
     "prefix": "fr",
     "body": "\\frac{${1:1}}{${2:2}}"

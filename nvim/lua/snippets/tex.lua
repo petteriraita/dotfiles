@@ -19,7 +19,23 @@ ls.add_snippets('tex', {
     { condition = math }
   ),
 })
--- The snippet for the mk math mode
+
+ls.add_snippets('tex', {
+  s({ trig = 'floor', snippetType = 'autosnippet' }, fmta([[\lfloor <> \rfloor]], { i(1) }), { condition = math }),
+})
+
+ls.add_snippets('tex', {
+  s({ trig = 'ceil', snippetType = 'autosnippet' }, fmta([[\lceil <> \rceil]], { i(1) }), { condition = math }),
+})
+ls.add_snippets('tex', {
+  s(
+    { trig = 'lg', wordTrig = true, snippetType = 'autosnippet' },
+    fmta([[\log(<>)]], {
+      i(1),
+    }),
+    { condition = math }
+  ),
+}) -- The snippet for the mk math mode
 ls.add_snippets('tex', {
 
   s(
@@ -51,6 +67,36 @@ ls.add_snippets('tex', {
     }
   ),
 })
+ls.add_snippets('tex', {
+  s(
+    { trig = 'sumi', wordTrig = true, snippetType = 'autosnippet' },
+
+    fmta([[\sum_{n=1} <>]], {
+      i(1),
+    }),
+
+    {
+      condition = math,
+    }
+  ),
+})
+
+ls.add_snippets('tex', {
+  s(
+    { trig = 'sq', wordTrig = true, snippetType = 'autosnippet' },
+
+    -- using a long string with [[ here]] this makes so that you dont need to escape backslashes
+    fmta([[\sqrt{<>}<>]], {
+      i(1),
+      i(0),
+    }),
+
+    {
+      condition = math,
+    }
+  ),
+})
+
 ls.add_snippets('tex', {
   s(
     { trig = 'dm', wordTrig = true, snippetType = 'autosnippet' },

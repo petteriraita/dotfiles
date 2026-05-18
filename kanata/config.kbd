@@ -44,7 +44,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
   
   ;; numpad layer
-  v (tap-hold $tap_timeout $long_hold_timeout v (layer-while-held numpad))
+  v (tap-hold $tap_timeout $hold_timeout v (layer-while-held numpad))
 
   ;; Acts as a modifier by default, or as BackSpace
   lalt (tap-hold $tap_timeout $hold_timeout bspc (layer-while-held symbols))

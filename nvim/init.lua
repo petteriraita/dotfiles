@@ -202,6 +202,11 @@ vim.keymap.set('n', '<leader>cp', function()
   vim.fn.setreg('+', vim.fn.expand '%:p')
 end, { desc = 'copy file path' })
 
+-- add keymap to open e.g. pdfs from inside the file
+vim.keymap.set('n', '<localleader>xx', function()
+  vim.fn.jobstart({ 'xdg-open', vim.fn.expand '%:p' }, { detach = true })
+end, { desc = 'Open current file externally' })
+
 -- Petteri add molten
 --
 vim.keymap.set('n', '<localleader>mi', ':MoltenInit<CR>', { silent = true, desc = 'Initialize the plugin' })
