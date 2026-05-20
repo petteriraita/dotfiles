@@ -1026,7 +1026,7 @@ require('lazy').setup({
       },
 
       -- Allows extra capabilities provided by blink.cmp
-      'saghen/blink.cmp',
+      -- 'saghen/blink.cmp',
     },
     config = function()
       -- Brief aside: **What is LSP?**
@@ -1796,6 +1796,5 @@ vim.diagnostic.config {
     severity = { min = vim.diagnostic.severity.WARN },
   },
 }
-
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
