@@ -291,6 +291,12 @@ end
 local rtp = vim.opt.rtp
 rtp:prepend(lazypath)
 
+-- so for the .zsh file type that you add in the buffer, make it highlight like its a bash file
+vim.filetype.add {
+  extension = {
+    zsh = 'sh',
+  },
+}
 -- petteri add fsharp
 vim.filetype.add {
   extension = {
@@ -334,6 +340,11 @@ vim.api.nvim_create_autocmd('FileType', {
     imap(';a', '⇒')
     imap(';A', '⟹')
     imap(';i', '⟶')
+    -- ;r = →
+    -- object-language implication / right arrow
+    -- "r" chosen from right arrow
+    -- used for embedded formulas of type form, e.g. "p → q" in your Core_Logic theory
+    imap(';r', '→')
     imap(';n', '¬')
     imap(';w', '∧')
     imap(';v', '∨')
@@ -1354,7 +1365,8 @@ require('lazy').setup({
         end
       end,
       formatters_by_ft = {
-        java = { 'google_java_format' },
+        -- java = { 'google_java_format' },
+        java = {},
         lua = { 'stylua' },
         python = {},
         -- python = { 'ruff_format' },

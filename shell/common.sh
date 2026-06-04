@@ -101,6 +101,17 @@ md2pdf() {
 #     sioyek "$@" >/dev/null 2>&1 &
 #     disown
 # }
+# nvim quick opener. If no args, open in the CWD
+v() {
+    case $# in
+    0)
+        nvim "$PWD"
+        ;;
+    *)
+        nvim "$@"
+        ;;
+    esac
+}
 x() {
     case $# in
     # 0) echo "got the input of 0 args" ;;
@@ -177,9 +188,9 @@ alias la="ls -A"
 alias lt="ls -lhtr"
 alias ld="ls -d */"
 
-### my own ones
-alias v="nvim"
+alias vn="nvim"
 
+### my own ones
 alias c='xclip -selection clipboard'
 
 alias zsource='source /home/pt/.config/zsh/zshrc' # Reload .bashrc to apply changes

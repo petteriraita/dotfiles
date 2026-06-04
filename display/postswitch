@@ -88,6 +88,10 @@ check_if_only_charging_cable() {
     log "DISPLAY CONNECTION: current_state signature = $current_state"
 
     if [[ "$current_state" == "$previous_state" ]]; then
+        if [[ "$current_state" == "internal-only" ]]; then
+            log "DISPLAY CONNECTION: internal-only state; reapplying mobile layout"
+            return 1
+        fi
         log "DISPLAY CONNECTION: previous_state signature = $previous_state"
         log "DISPLAY CONNECTION: charger added - no action"
         return 0
