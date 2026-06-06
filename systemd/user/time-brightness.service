@@ -1,0 +1,9 @@
+[Unit]
+Description=Apply time-based brightness profile
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=%h/.config/display/time-brightness auto
+

@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+DAY_START="${DAY_START:-07:30}"
+NIGHT_START="${NIGHT_START:-19:30}"
+
+LAPTOP_DAY="${LAPTOP_DAY:-70%}"
+LAPTOP_NIGHT="${LAPTOP_NIGHT:-25%}"
+
+EXTERNAL_DAY="${EXTERNAL_DAY:-60}"
+EXTERNAL_NIGHT="${EXTERNAL_NIGHT:-20}"
+
+INTERNAL_OUTPUT="${INTERNAL_OUTPUT:-eDP-1}"
+DRM_STATUS_GLOB="${DRM_STATUS_GLOB:-/sys/class/drm/card*-*/status}"
+
+BRIGHTNESSCTL_BIN="${BRIGHTNESSCTL_BIN:-brightnessctl}"
+DDCUTIL_BIN="${DDCUTIL_BIN:-ddcutil}"
+
+log() {
+    printf 'TIME BRIGHTNESS: %s\n' "$1"
+}
+
+choose_profile() {
+    local requested="${1:-auto}"
+    local now_hm=""
+
+    case "$requested" in
+        day | night)
+            printf '%s\n' "$requested"
+            return 0
+            ;;
+        auto)
+            now_hm="$(date +%H:%M)"
+            if [[ "$now_hm" < "$DAY_START" || ! "$now_hm" < "$NIGHT_START" ]]; then
+                printf 'night\n'
+            else
+                printf 'day\n'
+            fi
+            ;;
+        *)
+            log "unknown profile '$requested'"
+            exit 1
+            ;;
+    esac
+}
+
+list_external_connectors() {
+    local status_file=""
+    local connector_name=""
+
+    for status_file in $DRM_STATUS_GLOB; do
+        [[ -e "$status_file" ]] || continue
+        if grep -qx connected "$status_file"; then
+            connector_name="${status_file%/status}"
+            connector_name="${connector_name##*/}"
+            if [[ "$connector_name" != *"$INTERNAL_OUTPUT"* ]]; then
+                printf '%s\n' "$connector_name"
+            fi
+        fi
+    done
+}
+
+set_laptop_brightness() {
+    local target="$1"
+
+    if ! command -v "$BRIGHTNESSCTL_BIN" >/dev/null 2>&1; then
+        log "brightnessctl not found; skipping laptop brightness"
+        return 0
+    fi
+
+    if "$BRIGHTNESSCTL_BIN" set "$target" >/dev/null 2>&1; then
+        log "laptop brightness set to $target"
+    else
+        log "failed to set laptop brightness to $target"
+    fi
+}
+
+list_ddc_buses() {
+    "$DDCUTIL_BIN" detect --brief --syslog=NEVER 2>/dev/null |
+        awk '
+            /^Display [0-9]+/ { valid=1; next }
+            /^Invalid display/ { valid=0; next }
+            valid && /I2C bus:/ {
+                if (match($0, /\/dev\/i2c-[0-9]+/)) {
+                    print substr($0, RSTART + 9, RLENGTH - 9)
+                }
+                valid=0
+            }
+        '
+}
+
+set_external_brightness() {
+    local target="$1"
+    local connectors=()
+    local buses=()
+    local bus=""
+    local changed=0
+
+    mapfile -t connectors < <(list_external_connectors)
+    if ((${#connectors[@]} == 0)); then
+        log "no external connector is currently connected"
+        return 0
+    fi
+
+    if ! command -v "$DDCUTIL_BIN" >/dev/null 2>&1; then
+        log "ddcutil not found; skipping external brightness"
+        return 0
+    fi
+
+    if ! compgen -G '/dev/i2c-*' >/dev/null; then
+        log "external connectors detected (${connectors[*]}), but /dev/i2c-* is unavailable; skipping DDC brightness"
+        return 0
+    fi
+
+    mapfile -t buses < <(list_ddc_buses)
+    if ((${#buses[@]} == 0)); then
+        log "external connectors detected (${connectors[*]}), but ddcutil found no controllable displays"
+        return 0
+    fi
+
+    for bus in "${buses[@]}"; do
+        if "$DDCUTIL_BIN" --syslog=NEVER setvcp 10 "$target" --bus "$bus" --noverify >/dev/null 2>&1; then
+            log "external brightness set to $target on i2c bus $bus"
+            changed=1
+        else
+            log "failed to set external brightness on i2c bus $bus"
+        fi
+    done
+
+    if ((changed == 0)); then
+        log "no external display brightness changes were applied"
+    fi
+}
+
+main() {
+    local profile=""
+    local laptop_target=""
+    local external_target=""
+
+    profile="$(choose_profile "${1:-auto}")"
+
+    case "$profile" in
+        day)
+            laptop_target="$LAPTOP_DAY"
+            external_target="$EXTERNAL_DAY"
+            ;;
+        night)
+            laptop_target="$LAPTOP_NIGHT"
+            external_target="$EXTERNAL_NIGHT"
+            ;;
+    esac
+
+    log "selected profile = $profile"
+    set_laptop_brightness "$laptop_target"
+    set_external_brightness "$external_target"
+}
+
+main "${1:-auto}"

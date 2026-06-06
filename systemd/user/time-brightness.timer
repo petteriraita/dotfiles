@@ -1,0 +1,12 @@
+[Unit]
+Description=Reapply time-based brightness profile
+
+[Timer]
+OnStartupSec=30s
+OnCalendar=*:0/10
+AccuracySec=1min
+Persistent=true
+Unit=time-brightness.service
+
+[Install]
+WantedBy=timers.target
