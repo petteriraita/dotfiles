@@ -106,6 +106,10 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   ae (unicode æ)
   oslash (unicode ø)
 
+    ;; German letters
+  udots (unicode ü)   ;; u with two dots = German ü / U-umlaut
+  eszett    (unicode ß)   ;; Eszett / sharp s
+
   ^  S-6
   <  S-,
   >  S-.
@@ -178,7 +182,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 ;; 10, 10, 10 +1, 10, 3 ==> 44
 (deflayer symbols
-         @awithring    @ae        @addots    @oslash          @oddots    XX    XX    XX     XX    XX
+         @awithring    @ae        @addots    @oslash          @oddots    @udots    @eszett    XX     XX    XX
          @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
     _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
          @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
