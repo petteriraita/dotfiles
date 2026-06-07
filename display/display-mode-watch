@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+POSTSWITCH_BIN="${POSTSWITCH_BIN:-$HOME/.config/display/postswitch}"
+LIBINPUT_BIN="${LIBINPUT_BIN:-libinput}"
+LID_DEVICE_NAME="${LID_DEVICE_NAME:-Lid Switch}"
+
+find_lid_device() {
+    local name_file=""
+    local event_name=""
+
+    for name_file in /sys/class/input/event*/device/name; do
+        [[ -r "$name_file" ]] || continue
+        if grep -qx "$LID_DEVICE_NAME" "$name_file"; then
+            event_name="$(basename "$(dirname "$(dirname "$name_file")")")"
+            printf '/dev/input/%s\n' "$event_name"
+            return 0
+        fi
+    done
+
+    return 1
+}
+
+main() {
+    local lid_device=""
+
+    lid_device="$(find_lid_device)" || exit 1
+    "$POSTSWITCH_BIN" || true
+
+    stdbuf -oL "$LIBINPUT_BIN" debug-events --device "$lid_device" 2>/dev/null |
+        while IFS= read -r _line; do
+            sleep 0.2
+            "$POSTSWITCH_BIN" || true
+        done
+}
+
+main "$@"

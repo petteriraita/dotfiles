@@ -1,0 +1,15 @@
+[Unit]
+Description=Watch lid and display mode changes
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%t/gdm/Xauthority
+ExecStart=%h/.config/display/display-mode-watch
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-INTERNAL="eDP-1"
+INTERNAL="${INTERNAL:-eDP-1}"
 STATE_FILE="${STATE_FILE:-/tmp/display_state}"
 LOCK_FILE="${LOCK_FILE:-/tmp/display_postswitch.lock}"
 NOTIFY_BIN="${NOTIFY_BIN:-safenotify.sh}"
@@ -9,17 +9,14 @@ XRANDR_BIN="${XRANDR_BIN:-xrandr}"
 I3MSG_BIN="${I3MSG_BIN:-i3-msg}"
 JQ_BIN="${JQ_BIN:-jq}"
 DRM_STATUS_GLOB="${DRM_STATUS_GLOB:-/sys/class/drm/card*-*/status}"
-# Policy:
-# - Reconnect should apply quickly once external state stabilizes.
-# - Disconnect should only apply after a continuous grace window.
-# - xrandr/i3/X readiness waits are explicit wall-clock budgets, not hidden
-#   "retry count" magic.
-FAST_POLL_INTERVAL="${FAST_POLL_INTERVAL:-0.25}"
-SLOW_POLL_INTERVAL="${SLOW_POLL_INTERVAL:-0.75}"
-XRANDR_READY_TIMEOUT="${XRANDR_READY_TIMEOUT:-0.75}"
-EXTERNAL_DISCOVERY_TIMEOUT="${EXTERNAL_DISCOVERY_TIMEOUT:-2.0}"
-I3_OUTPUT_DISCOVERY_TIMEOUT="${I3_OUTPUT_DISCOVERY_TIMEOUT:-3.0}"
-UNPLUG_GRACE_SECONDS="${UNPLUG_GRACE_SECONDS:-2.0}"
+LID_STATE_FILE="${LID_STATE_FILE:-/proc/acpi/button/lid/LID/state}"
+
+POLL_INTERVAL="${POLL_INTERVAL:-0.5}"
+STABLE_SAMPLES="${STABLE_SAMPLES:-3}"
+XRANDR_READY_ATTEMPTS="${XRANDR_READY_ATTEMPTS:-6}"
+XRANDR_APPLY_ATTEMPTS="${XRANDR_APPLY_ATTEMPTS:-4}"
+DISCONNECT_GRACE_SAMPLES="${DISCONNECT_GRACE_SAMPLES:-6}"
+I3_DISCOVERY_ATTEMPTS="${I3_DISCOVERY_ATTEMPTS:-6}"
 
 exec 9>"$LOCK_FILE"
 if ! flock -n 9; then
@@ -31,38 +28,12 @@ log() {
     "$NOTIFY_BIN" "$1"
 }
 
-snapshot_outputs() {
-    "$I3MSG_BIN" -t get_outputs |
-        "$JQ_BIN" -r '.[] | select(.active == true) | "\(.name):primary=\(.primary):rect=\(.rect.x),\(.rect.y),\(.rect.width)x\(.rect.height):workspace=\(.current_workspace)"' 2>/dev/null ||
-        true
-}
-
-log_output_snapshot() {
-    local label="$1"
-    local line=""
-
-    while read -r line; do
-        [[ -n "$line" ]] && log "DISPLAY CONNECTION: $label output $line"
-    done < <(snapshot_outputs)
-}
-
-snapshot_workspaces() {
-    "$I3MSG_BIN" -t get_workspaces |
-        "$JQ_BIN" -r '.[] | "\(.num):\(.output):focused=\(.focused):visible=\(.visible)"' 2>/dev/null ||
-        true
-}
-
-log_workspace_snapshot() {
-    local label="$1"
-    local line=""
-
-    while read -r line; do
-        [[ -n "$line" ]] && log "DISPLAY CONNECTION: $label workspace $line"
-    done < <(snapshot_workspaces)
-}
-
 read_state() {
     cat "$STATE_FILE" 2>/dev/null || echo "unset"
+}
+
+write_state() {
+    printf '%s\n' "$1" >"$STATE_FILE"
 }
 
 has_x_session() {
@@ -71,359 +42,301 @@ has_x_session() {
 
 run_retry() {
     local attempts="$1"
-    local delay="$2"
-    shift 2
+    shift
+    local try
 
-    local try=1
-    while ((try <= attempts)); do
+    for ((try = 1; try <= attempts; try++)); do
         if "$@"; then
             return 0
         fi
-        sleep "$delay"
-        ((try++))
+        sleep "$POLL_INTERVAL"
     done
 
     return 1
 }
 
-ceil_div_steps() {
-    local duration="$1"
-    local interval="$2"
-
-    python3 - "$duration" "$interval" <<'PY'
-import math, sys
-duration = float(sys.argv[1])
-interval = float(sys.argv[2])
-print(max(1, math.ceil(duration / interval)))
-PY
-}
-
-get_xrandr_outputs() {
-    "$XRANDR_BIN" --query 2>/dev/null
-}
-
-get_connected_external_signature() {
+current_signature() {
     local connectors=()
-    local connector_name=""
+    local status_file=""
+    local connector=""
 
-    for s in $DRM_STATUS_GLOB; do
-        [[ -e "$s" ]] || continue
-        if grep -qx connected "$s"; then
-            connector_name="${s%/status}"
-            connector_name="${connector_name##*/}"
-            if [[ "$connector_name" != *"$INTERNAL"* ]]; then
-                connectors+=("$connector_name")
+    for status_file in $DRM_STATUS_GLOB; do
+        [[ -e "$status_file" ]] || continue
+        if grep -qx connected "$status_file"; then
+            connector="${status_file%/status}"
+            connector="${connector##*/}"
+            if [[ "$connector" != *"$INTERNAL"* ]]; then
+                connectors+=("$connector")
             fi
         fi
     done
 
     if ((${#connectors[@]} == 0)); then
-        echo "internal-only"
+        printf '%s\n' "internal-only"
         return
     fi
 
     printf '%s\n' "${connectors[@]}" | sort | paste -sd ',' -
 }
 
-sample_stable_signature() {
-    local attempts="$1"
-    local delay="$2"
+lid_state() {
+    if [[ -r "$LID_STATE_FILE" ]]; then
+        awk '/state:/ {print $2}' "$LID_STATE_FILE"
+        return
+    fi
+
+    printf '%s\n' "open"
+}
+
+current_mode() {
+    local signature=""
+    local lid=""
+
+    signature="$(current_signature)"
+    lid="$(lid_state)"
+
+    if [[ "$signature" == "internal-only" ]]; then
+        printf '%s\n' "mobile"
+        return
+    fi
+
+    if [[ "$lid" == "closed" ]]; then
+        printf '%s\n' "clamshell:$signature"
+    else
+        printf '%s\n' "docked:$signature"
+    fi
+}
+
+wait_for_stable_mode() {
     local previous="__unset__"
     local current=""
-    local stable_count=0
+    local stable=0
+    local try
 
-    for ((i = 1; i <= attempts; i++)); do
-        current="$(get_connected_external_signature)"
-
+    for ((try = 1; try <= 20; try++)); do
+        current="$(current_mode)"
         if [[ "$current" == "$previous" ]]; then
-            ((stable_count++))
+            ((stable += 1))
         else
             previous="$current"
-            stable_count=1
+            stable=1
         fi
 
-        if ((stable_count >= 2)); then
+        if ((stable >= STABLE_SAMPLES)); then
             printf '%s\n' "$current"
             return 0
         fi
 
-        sleep "$delay"
+        sleep "$POLL_INTERVAL"
     done
 
     printf '%s\n' "$current"
 }
 
-confirm_persistent_internal_only() {
-    local grace_seconds="$1"
-    local delay="$2"
-    local current=""
-    local attempts=""
+confirm_internal_only() {
+    local try
 
-    attempts="$(ceil_div_steps "$grace_seconds" "$delay")"
-
-    for ((i = 1; i <= attempts; i++)); do
-        current="$(get_connected_external_signature)"
-        if [[ "$current" != "internal-only" ]]; then
-            return 1
-        fi
-        if ((i < attempts)); then
-            sleep "$delay"
+    for ((try = 1; try <= DISCONNECT_GRACE_SAMPLES; try++)); do
+        [[ "$(current_signature)" == "internal-only" ]] || return 1
+        if ((try < DISCONNECT_GRACE_SAMPLES)); then
+            sleep "$POLL_INTERVAL"
         fi
     done
 
     return 0
 }
 
-get_active_external_output() {
-    "$I3MSG_BIN" -t get_outputs |
+first_connected_external() {
+    "$XRANDR_BIN" --query 2>/dev/null |
+        awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}'
+}
+
+connected_non_internal_outputs() {
+    "$XRANDR_BIN" --query 2>/dev/null |
+        awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1}'
+}
+
+active_external_output() {
+    "$I3MSG_BIN" -t get_outputs 2>/dev/null |
         "$JQ_BIN" -r '.[] | select(.active == true and .name != "'"$INTERNAL"'") | .name' |
         head -n 1
 }
 
-get_primary_output() {
-    "$I3MSG_BIN" -t get_outputs |
-        "$JQ_BIN" -r '.[] | select(.active == true and .primary == true) | .name' |
+focused_workspace_name() {
+    "$I3MSG_BIN" -t get_workspaces 2>/dev/null |
+        "$JQ_BIN" -r '.[] | select(.focused == true) | .name' |
         head -n 1
 }
 
-get_first_connected_external_output() {
-    get_xrandr_outputs |
-        awk '/ connected/ && $1 != "'"$INTERNAL"'" {print $1; exit}'
-}
-
-wait_for_external_output() {
-    local attempts="$1"
-    local delay="$2"
-    local output=""
-
-    for ((i = 1; i <= attempts; i++)); do
-        output="$(get_first_connected_external_output)"
-        if [[ -n "$output" ]]; then
-            printf '%s\n' "$output"
-            return 0
-        fi
-        sleep "$delay"
-    done
-
-    return 1
-}
-
-disable_other_outputs() {
-    local keep_a="$1"
-    local keep_b="${2:-}"
-    local out=""
-
-    while read -r out; do
-        [[ -z "$out" ]] && continue
-        if [[ "$out" != "$keep_a" && "$out" != "$keep_b" ]]; then
-            "$XRANDR_BIN" --output "$out" --off
-        fi
-    done < <(get_xrandr_outputs | awk '/ connected| disconnected/ {print $1}')
-}
-
 ensure_workspaces_exist() {
-    local i=""
+    local i
     for i in {1..9}; do
         "$I3MSG_BIN" "workspace number $i" >/dev/null
     done
 }
 
-workspace_layout_matches() {
-    local target_external="$1"
-    local data=""
-    local actual=""
-    local expected=""
-    local i=""
-    local primary_output=""
+move_workspaces_docked() {
+    local output="$1"
+    local focused="$2"
 
-    data="$("$I3MSG_BIN" -t get_workspaces | "$JQ_BIN" -r '.[] | "\(.num) \(.output)"' 2>/dev/null || true)"
-    [[ -n "$data" ]] || return 1
-
-    if [[ -n "$target_external" ]]; then
-        primary_output="$(get_primary_output)"
-        [[ "$primary_output" == "$target_external" ]] || return 1
-    fi
-
-    for i in {1..9}; do
-        actual="$(printf '%s\n' "$data" | awk -v n="$i" '$1 == n {print $2; exit}')"
-        if [[ -z "$actual" ]]; then
-            continue
-        fi
-
-        if [[ -n "$target_external" && "$i" -le 8 ]]; then
-            expected="$target_external"
-        else
-            expected="$INTERNAL"
-        fi
-
-        if [[ "$actual" != "$expected" ]]; then
-            return 1
-        fi
-    done
-
-    return 0
+    "$I3MSG_BIN" "\
+workspace number 8; move workspace to output $output; \
+workspace number 7; move workspace to output $output; \
+workspace number 6; move workspace to output $output; \
+workspace number 5; move workspace to output $output; \
+workspace number 4; move workspace to output $output; \
+workspace number 3; move workspace to output $output; \
+workspace number 2; move workspace to output $output; \
+workspace number 1; move workspace to output $output; \
+workspace number 9; move workspace to output $INTERNAL; \
+workspace $focused" >/dev/null
 }
 
-move_workspaces_preserving_focus() {
-    local target_external="$1"
-    local focused_workspace=""
+move_workspaces_mobile() {
+    local focused="$1"
 
-    ensure_workspaces_exist
-    log_output_snapshot "before"
-    log_workspace_snapshot "before"
-    focused_workspace="$("$I3MSG_BIN" -t get_workspaces | "$JQ_BIN" -r '.[] | select(.focused == true) | .name' | head -n 1)"
-
-    if [[ -n "$target_external" ]]; then
-        # Move 1..8 away first in reverse order. i3 may create a temporary
-        # placeholder workspace on the laptop panel while those visible
-        # workspaces leave; pin workspace 9 to eDP-1 last so it overwrites that
-        # placeholder instead of leaving something like workspace 5 behind.
-        for i in {8..1}; do
-            "$I3MSG_BIN" "workspace number $i; move workspace to output $target_external" >/dev/null
-        done
-        "$I3MSG_BIN" "workspace number 9; move workspace to output $INTERNAL" >/dev/null
-    else
-        for i in {1..9}; do
-            "$I3MSG_BIN" "workspace number $i; move workspace to output $INTERNAL" >/dev/null
-        done
-    fi
-
-    if [[ -n "$focused_workspace" ]]; then
-        "$I3MSG_BIN" "workspace $focused_workspace" >/dev/null
-    fi
-
-    log_output_snapshot "after"
-    log_workspace_snapshot "after"
+    "$I3MSG_BIN" "\
+workspace number 1; move workspace to output $INTERNAL; \
+workspace number 2; move workspace to output $INTERNAL; \
+workspace number 3; move workspace to output $INTERNAL; \
+workspace number 4; move workspace to output $INTERNAL; \
+workspace number 5; move workspace to output $INTERNAL; \
+workspace number 6; move workspace to output $INTERNAL; \
+workspace number 7; move workspace to output $INTERNAL; \
+workspace number 8; move workspace to output $INTERNAL; \
+workspace number 9; move workspace to output $INTERNAL; \
+workspace $focused" >/dev/null
 }
 
-log "the postswitch runs!!"
-log "previous_state file status before running $(read_state)"
+move_workspaces_external_only() {
+    local output="$1"
+    local focused="$2"
 
-decide_target_signature() {
-    local current_state=""
+    "$I3MSG_BIN" "\
+workspace number 9; move workspace to output $output; \
+workspace number 8; move workspace to output $output; \
+workspace number 7; move workspace to output $output; \
+workspace number 6; move workspace to output $output; \
+workspace number 5; move workspace to output $output; \
+workspace number 4; move workspace to output $output; \
+workspace number 3; move workspace to output $output; \
+workspace number 2; move workspace to output $output; \
+workspace number 1; move workspace to output $output; \
+workspace $focused" >/dev/null
+}
+
+turn_off_other_connected_outputs() {
+    local keep_a="$1"
+    local keep_b="${2:-}"
+    local output=""
+
+    while read -r output; do
+        [[ -z "$output" ]] && continue
+        if [[ "$output" != "$keep_a" && "$output" != "$keep_b" ]]; then
+            run_retry "$XRANDR_APPLY_ATTEMPTS" "$XRANDR_BIN" --output "$output" --off
+        fi
+    done < <(connected_non_internal_outputs)
+}
+
+apply_mobile_layout() {
+    run_retry "$XRANDR_APPLY_ATTEMPTS" \
+        "$XRANDR_BIN" \
+        --output "$INTERNAL" --auto --primary --pos 0x0
+    turn_off_other_connected_outputs "$INTERNAL"
+}
+
+apply_docked_layout() {
+    local external="$1"
+
+    run_retry "$XRANDR_APPLY_ATTEMPTS" \
+        "$XRANDR_BIN" \
+        --output "$INTERNAL" --auto \
+        --output "$external" --auto --primary --above "$INTERNAL"
+    turn_off_other_connected_outputs "$INTERNAL" "$external"
+}
+
+apply_clamshell_layout() {
+    local external="$1"
+
+    run_retry "$XRANDR_APPLY_ATTEMPTS" \
+        "$XRANDR_BIN" \
+        --output "$external" --auto --primary \
+        --output "$INTERNAL" --off
+    turn_off_other_connected_outputs "$external"
+}
+
+main() {
     local previous_state=""
-    local confirm_interval="$FAST_POLL_INTERVAL"
-    local confirm_timeout="$EXTERNAL_DISCOVERY_TIMEOUT"
-    local confirm_attempts=""
-
-    previous_state="$(read_state)"
-
-    if [[ "$previous_state" != "unset" && "$previous_state" != "internal-only" ]]; then
-        confirm_interval="$SLOW_POLL_INTERVAL"
-    fi
-
-    confirm_attempts="$(ceil_div_steps "$confirm_timeout" "$confirm_interval")"
-    current_state="$(sample_stable_signature "$confirm_attempts" "$confirm_interval")"
-
-    # Disconnects during suspend/resume are often transient. Accept reconnects
-    # quickly, but require a much longer uninterrupted internal-only period
-    # before tearing down the external layout.
-    if [[ "$previous_state" != "unset" && "$previous_state" != "internal-only" && "$current_state" == "internal-only" ]]; then
-        if ! confirm_persistent_internal_only "$UNPLUG_GRACE_SECONDS" "$FAST_POLL_INTERVAL"; then
-            current_state="$previous_state"
-            log "DISPLAY CONNECTION: transient unplug ignored; keeping $previous_state"
-        fi
-    fi
-
-    log "previous_state file status after running $previous_state"
-    log "DISPLAY CONNECTION: current_state signature = $current_state"
-    printf '%s\n' "$current_state"
-}
-
-check_if_only_charging_cable() {
-    local current_state=""
-    local previous_state=""
-    local actual_dp=""
-
-    log "DISPLAY CONNECTION: charger function called"
-    previous_state="$(read_state)"
-    current_state="$(decide_target_signature)"
-
-    if [[ "$current_state" == "$previous_state" ]]; then
-        if [[ "$current_state" == "internal-only" ]]; then
-            if workspace_layout_matches ""; then
-                log "DISPLAY CONNECTION: internal-only state already matches layout"
-                return 0
-            fi
-
-            log "DISPLAY CONNECTION: internal-only state detected with layout drift; reapplying mobile layout"
-            return 1
-        fi
-
-        actual_dp="$(get_active_external_output)"
-        actual_dp="${actual_dp:-HDMI-1}"
-        if workspace_layout_matches "$actual_dp"; then
-            log "DISPLAY CONNECTION: previous_state signature = $previous_state"
-            log "DISPLAY CONNECTION: charger added - no action"
-            return 0
-        fi
-
-        log "DISPLAY CONNECTION: stable external state detected with layout drift; reapplying docked layout"
-        return 1
-    fi
-
-    echo "$current_state" >"$STATE_FILE"
-    log "DISPLAY CONNECTION: updated state file to $current_state"
-    return 1
-}
-
-switch_monitors() {
+    local target_state=""
     local external=""
-    local actual_dp=""
-    local xrandr_attempts=""
-    local external_attempts=""
-    local i3_attempts=""
+    local focused=""
+    local actual_external=""
+    local try
 
     if ! has_x_session; then
         log "DISPLAY CONNECTION: X session is not ready; skipping"
         exit 0
     fi
 
-    xrandr_attempts="$(ceil_div_steps "$XRANDR_READY_TIMEOUT" "$FAST_POLL_INTERVAL")"
-    if ! run_retry "$xrandr_attempts" "$FAST_POLL_INTERVAL" get_xrandr_outputs >/dev/null; then
-        log "DISPLAY CONNECTION: xrandr query failed repeatedly; skipping"
+    if ! run_retry "$XRANDR_READY_ATTEMPTS" "$XRANDR_BIN" --query >/dev/null; then
+        log "DISPLAY CONNECTION: xrandr is not ready; skipping"
         exit 0
     fi
 
-    # Suspend/resume can expose transient connector states. Sample the first
-    # connected external only after xrandr itself has settled.
-    external_attempts="$(ceil_div_steps "$EXTERNAL_DISCOVERY_TIMEOUT" "$FAST_POLL_INTERVAL")"
-    external="$(wait_for_external_output "$external_attempts" "$FAST_POLL_INTERVAL" || true)"
+    previous_state="$(read_state)"
+    target_state="$(wait_for_stable_mode)"
 
-    if [[ -z "$external" ]]; then
-        log "DISPLAY CONNECTION: switching display to mobile"
-        disable_other_outputs "$INTERNAL"
-        run_retry "$xrandr_attempts" "$FAST_POLL_INTERVAL" "$XRANDR_BIN" --output "$INTERNAL" --auto --primary --pos 0x0
-        run_retry "$xrandr_attempts" "$FAST_POLL_INTERVAL" "$XRANDR_BIN" --fb 1920x1200
-        move_workspaces_preserving_focus ""
-    else
-        log "DISPLAY CONNECTION: xrandr external candidate = $external"
-
-        run_retry "$xrandr_attempts" "$FAST_POLL_INTERVAL" "$XRANDR_BIN" --output "$INTERNAL" --auto
-        run_retry "$xrandr_attempts" "$FAST_POLL_INTERVAL" "$XRANDR_BIN" --output "$external" --auto --primary --above "$INTERNAL"
-        disable_other_outputs "$INTERNAL" "$external"
-
-        # i3 can lag behind xrandr during resume/hotplug; prefer the i3-active
-        # output name once it appears, but fall back to the xrandr connector.
-        i3_attempts="$(ceil_div_steps "$I3_OUTPUT_DISCOVERY_TIMEOUT" "$FAST_POLL_INTERVAL")"
-        for ((i = 1; i <= i3_attempts; i++)); do
-            actual_dp="$(get_active_external_output)"
-            [[ -n "$actual_dp" ]] && break
-            sleep "$FAST_POLL_INTERVAL"
-        done
-        actual_dp="${actual_dp:-$external}"
-
-        log "DISPLAY CONNECTION: switching display to EXTERNAL = $external"
-        log "DISPLAY CONNECTION: active i3 external = $actual_dp"
-        # docked geometry
-        move_workspaces_preserving_focus "$actual_dp"
+    if [[ "$previous_state" == docked:* || "$previous_state" == clamshell:* ]] && [[ "$target_state" == "mobile" ]]; then
+        if ! confirm_internal_only; then
+            log "DISPLAY CONNECTION: transient disconnect ignored"
+            exit 0
+        fi
     fi
+
+    if [[ "$target_state" == "$previous_state" ]]; then
+        log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
+        exit 0
+    fi
+
+    focused="$(focused_workspace_name)"
+    focused="${focused:-9}"
+    ensure_workspaces_exist
+
+    if [[ "$target_state" == "mobile" ]]; then
+        log "DISPLAY CONNECTION: applying mobile layout"
+        apply_mobile_layout
+        move_workspaces_mobile "$focused"
+    else
+        external="$(first_connected_external || true)"
+        if [[ -z "$external" ]]; then
+            log "DISPLAY CONNECTION: external signature seen but xrandr found none; skipping"
+            exit 0
+        fi
+
+        if [[ "$target_state" == clamshell:* ]]; then
+            log "DISPLAY CONNECTION: applying clamshell layout on $external"
+            apply_clamshell_layout "$external"
+        else
+            log "DISPLAY CONNECTION: applying docked layout on $external"
+            apply_docked_layout "$external"
+        fi
+
+        actual_external=""
+        for ((try = 1; try <= I3_DISCOVERY_ATTEMPTS; try++)); do
+            actual_external="$(active_external_output)"
+            [[ -n "$actual_external" ]] && break
+            sleep "$POLL_INTERVAL"
+        done
+        actual_external="${actual_external:-$external}"
+
+        if [[ "$target_state" == clamshell:* ]]; then
+            move_workspaces_external_only "$actual_external" "$focused"
+        else
+            move_workspaces_docked "$actual_external" "$focused"
+        fi
+    fi
+
+    write_state "$target_state"
 }
 
-## if the charging check returns true, dont do anything
-if check_if_only_charging_cable; then
-    ## exit successfully without doing anything
-    exit 0
-else
-    switch_monitors
-fi
+main "$@"
