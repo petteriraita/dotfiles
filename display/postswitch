@@ -162,6 +162,60 @@ active_external_output() {
         head -n 1
 }
 
+internal_output_active() {
+    "$I3MSG_BIN" -t get_outputs 2>/dev/null |
+        "$JQ_BIN" -e '.[] | select(.active == true and .name == "'"$INTERNAL"'")' >/dev/null
+}
+
+workspace_output() {
+    local workspace_number="$1"
+
+    "$I3MSG_BIN" -t get_workspaces 2>/dev/null |
+        "$JQ_BIN" -r '.[] | select(.num == '"$workspace_number"') | .output' |
+        head -n 1
+}
+
+mode_layout_matches() {
+    local target_mode="$1"
+    local target_external=""
+    local output=""
+    local i=""
+
+    target_external="$(active_external_output)"
+
+    if [[ "$target_mode" == "mobile" ]]; then
+        internal_output_active || return 1
+        [[ -z "$target_external" ]] || return 1
+
+        for i in {1..9}; do
+            output="$(workspace_output "$i")"
+            [[ -z "$output" || "$output" == "$INTERNAL" ]] || return 1
+        done
+        return 0
+    fi
+
+    [[ -n "$target_external" ]] || return 1
+
+    if [[ "$target_mode" == clamshell:* ]]; then
+        internal_output_active && return 1
+        for i in {1..9}; do
+            output="$(workspace_output "$i")"
+            [[ -z "$output" || "$output" == "$target_external" ]] || return 1
+        done
+        return 0
+    fi
+
+    internal_output_active || return 1
+    for i in {1..8}; do
+        output="$(workspace_output "$i")"
+        [[ -z "$output" || "$output" == "$target_external" ]] || return 1
+    done
+
+    output="$(workspace_output 9)"
+    [[ -z "$output" || "$output" == "$INTERNAL" ]] || return 1
+    return 0
+}
+
 focused_workspace_name() {
     "$I3MSG_BIN" -t get_workspaces 2>/dev/null |
         "$JQ_BIN" -r '.[] | select(.focused == true) | .name' |
@@ -294,8 +348,12 @@ main() {
     fi
 
     if [[ "$target_state" == "$previous_state" ]]; then
-        log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
-        exit 0
+        if mode_layout_matches "$target_state"; then
+            log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
+            exit 0
+        fi
+
+        log "DISPLAY CONNECTION: stable mode $target_state but live layout drifted; reapplying"
     fi
 
     focused="$(focused_workspace_name)"

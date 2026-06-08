@@ -3,6 +3,7 @@ set -euo pipefail
 
 POSTSWITCH_BIN="${POSTSWITCH_BIN:-$HOME/.config/display/postswitch}"
 LIBINPUT_BIN="${LIBINPUT_BIN:-libinput}"
+GDBUS_BIN="${GDBUS_BIN:-gdbus}"
 LID_DEVICE_NAME="${LID_DEVICE_NAME:-Lid Switch}"
 
 find_lid_device() {
@@ -23,6 +24,8 @@ find_lid_device() {
 
 main() {
     local lid_device=""
+    local lid_pid=""
+    local resume_pid=""
 
     lid_device="$(find_lid_device)" || exit 1
     "$POSTSWITCH_BIN" || true
@@ -31,7 +34,25 @@ main() {
         while IFS= read -r _line; do
             sleep 0.2
             "$POSTSWITCH_BIN" || true
-        done
+        done &
+    lid_pid=$!
+
+    "$GDBUS_BIN" monitor --system --dest org.freedesktop.login1 2>/dev/null |
+        while IFS= read -r line; do
+            if [[ "$line" == *"PrepareForSleep"* ]]; then
+                while IFS= read -r state_line; do
+                    if [[ "$state_line" == *"boolean false"* ]]; then
+                        sleep 1
+                        "$POSTSWITCH_BIN" || true
+                        break
+                    fi
+                    [[ "$state_line" == *"boolean "* ]] && break
+                done
+            fi
+        done &
+    resume_pid=$!
+
+    wait "$lid_pid" "$resume_pid"
 }
 
 main "$@"
