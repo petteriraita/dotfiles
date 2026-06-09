@@ -1,0 +1,19 @@
+[Unit]
+Description=Switch Kanata layers based on focused X11 window
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=%t/gdm/Xauthority
+Environment=KANATA_PORT=10000
+Environment=DEFAULT_LAYER=base
+Environment=GAME_LAYER=skyrim
+Environment=GAME_CLASS_REGEX=steam_proton
+ExecStart=%h/dev/dotfiles/bin/kanata-layer-watch.sh
+Restart=always
+RestartSec=2
+
+[Install]
+WantedBy=graphical-session.target

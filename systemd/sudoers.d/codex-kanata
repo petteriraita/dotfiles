@@ -1,0 +1,1 @@
+pt ALL=(root) NOPASSWD: /usr/bin/systemctl daemon-reload, /usr/bin/systemctl restart kanata.service, /usr/bin/systemctl status kanata.service, /usr/bin/install -m 644 /home/pt/dev/dotfiles/systemd/system/kanata.service /etc/systemd/system/kanata.service

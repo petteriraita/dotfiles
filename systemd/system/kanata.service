@@ -4,7 +4,7 @@ After=systemd-udev-settle.service
 
 [Service]
 ExecStartPre=/sbin/modprobe uinput
-ExecStart=/usr/bin/kanata --cfg /home/pt/.config/kanata/config.kbd
+ExecStart=/usr/bin/kanata --cfg /home/pt/dev/dotfiles/kanata/config.kbd --port 10000 --no-wait
 Restart=on-failure
 RestartSec=1
 
