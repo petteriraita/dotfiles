@@ -5,6 +5,7 @@ POSTSWITCH_BIN="${POSTSWITCH_BIN:-$HOME/.config/display/postswitch}"
 LIBINPUT_BIN="${LIBINPUT_BIN:-libinput}"
 GDBUS_BIN="${GDBUS_BIN:-gdbus}"
 LID_DEVICE_NAME="${LID_DEVICE_NAME:-Lid Switch}"
+SUSPEND_FLAG_FILE="${SUSPEND_FLAG_FILE:-/tmp/display_suspend_in_progress}"
 
 find_lid_device() {
     local name_file=""
@@ -28,6 +29,7 @@ main() {
     local resume_pid=""
 
     lid_device="$(find_lid_device)" || exit 1
+    rm -f "$SUSPEND_FLAG_FILE"
     "$POSTSWITCH_BIN" || true
 
     stdbuf -oL "$LIBINPUT_BIN" debug-events --device "$lid_device" 2>/dev/null |
@@ -41,7 +43,12 @@ main() {
         while IFS= read -r line; do
             if [[ "$line" == *"PrepareForSleep"* ]]; then
                 while IFS= read -r state_line; do
+                    if [[ "$state_line" == *"boolean true"* ]]; then
+                        : >"$SUSPEND_FLAG_FILE"
+                        break
+                    fi
                     if [[ "$state_line" == *"boolean false"* ]]; then
+                        rm -f "$SUSPEND_FLAG_FILE"
                         sleep 1
                         "$POSTSWITCH_BIN" || true
                         break

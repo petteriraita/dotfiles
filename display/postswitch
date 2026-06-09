@@ -10,6 +10,7 @@ I3MSG_BIN="${I3MSG_BIN:-i3-msg}"
 JQ_BIN="${JQ_BIN:-jq}"
 DRM_STATUS_GLOB="${DRM_STATUS_GLOB:-/sys/class/drm/card*-*/status}"
 LID_STATE_FILE="${LID_STATE_FILE:-/proc/acpi/button/lid/LID/state}"
+SUSPEND_FLAG_FILE="${SUSPEND_FLAG_FILE:-/tmp/display_suspend_in_progress}"
 
 POLL_INTERVAL="${POLL_INTERVAL:-0.5}"
 STABLE_SAMPLES="${STABLE_SAMPLES:-3}"
@@ -34,6 +35,10 @@ read_state() {
 
 write_state() {
     printf '%s\n' "$1" >"$STATE_FILE"
+}
+
+sleep_transition_in_progress() {
+    [[ -e "$SUSPEND_FLAG_FILE" ]]
 }
 
 has_x_session() {
@@ -329,6 +334,11 @@ main() {
 
     if ! has_x_session; then
         log "DISPLAY CONNECTION: X session is not ready; skipping"
+        exit 0
+    fi
+
+    if sleep_transition_in_progress; then
+        log "DISPLAY CONNECTION: suspend transition in progress; skipping"
         exit 0
     fi
 
