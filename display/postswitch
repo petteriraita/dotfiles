@@ -402,6 +402,9 @@ main() {
         fi
     fi
 
+    # If the detected mode did not change and the live layout already matches,
+    # this was effectively a no-op event such as a charger-triggered wakeup.
+    # Exit before any xrandr apply to avoid visible flicker.
     if [[ "$target_state" == "$previous_state" ]]; then
         if mode_layout_matches "$target_state"; then
             log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
