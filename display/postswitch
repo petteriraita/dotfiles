@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Petteri rules: You are not allowed to delete comments from this script without permission. Only modify content if you modify functionality
+
 INTERNAL="${INTERNAL:-eDP-1}"
 STATE_FILE="${STATE_FILE:-/tmp/display_state}"
 LOCK_FILE="${LOCK_FILE:-/tmp/display_postswitch.lock}"
@@ -29,14 +31,34 @@ log() {
     "$NOTIFY_BIN" "$1"
 }
 
+snapshot_outputs() {
+    "$I3MSG_BIN" -t get_outputs 2>/dev/null |
+        "$JQ_BIN" -r '.[] | "\(.name):active=\(.active):primary=\(.primary):workspace=\(.current_workspace)"' ||
+        true
+}
+
+#  here there is some process substitution. being passed to the while loop
+log_output_snapshot() {
+    local label="$1"
+    local line=""
+
+    while read -r line; do
+        [[ -n "$line" ]] && log "DISPLAY CONNECTION: $label output $line"
+    done < <(snapshot_outputs)
+}
+
+# returns unset, if there is nothing in the state file
 read_state() {
     cat "$STATE_FILE" 2>/dev/null || echo "unset"
 }
 
+# write_state(), $1 is the new display state string, like mobile, docked:card1-HDMI-A-1, or clamshell:card1-HDMI-A-1.
+# this is then written to the state file
 write_state() {
     printf '%s\n' "$1" >"$STATE_FILE"
 }
 
+# so there the -e flag checks if the file path exists. If it does, then sleep transition is in progress
 sleep_transition_in_progress() {
     [[ -e "$SUSPEND_FLAG_FILE" ]]
 }
@@ -110,6 +132,18 @@ current_mode() {
     else
         printf '%s\n' "docked:$signature"
     fi
+}
+
+log_mode_context() {
+    local previous_state="$1"
+    local target_state="$2"
+    local signature="$3"
+    local lid="$4"
+
+    log "DISPLAY CONNECTION: previous_state = $previous_state"
+    log "DISPLAY CONNECTION: detected_signature = $signature"
+    log "DISPLAY CONNECTION: lid_state = $lid"
+    log "DISPLAY CONNECTION: target_state = $target_state"
 }
 
 wait_for_stable_mode() {
@@ -327,6 +361,8 @@ apply_clamshell_layout() {
 main() {
     local previous_state=""
     local target_state=""
+    local target_signature=""
+    local current_lid=""
     local external=""
     local focused=""
     local actual_external=""
@@ -349,11 +385,20 @@ main() {
 
     previous_state="$(read_state)"
     target_state="$(wait_for_stable_mode)"
+    target_signature="$(current_signature)"
+    current_lid="$(lid_state)"
+    log_mode_context "$previous_state" "$target_state" "$target_signature" "$current_lid"
 
     if [[ "$previous_state" == docked:* || "$previous_state" == clamshell:* ]] && [[ "$target_state" == "mobile" ]]; then
         if ! confirm_internal_only; then
             log "DISPLAY CONNECTION: transient disconnect ignored"
-            exit 0
+            if mode_layout_matches "$previous_state"; then
+                log "DISPLAY CONNECTION: live layout still matches $previous_state after transient disconnect"
+                exit 0
+            fi
+
+            log "DISPLAY CONNECTION: transient disconnect left live layout drifted; reapplying $previous_state"
+            target_state="$previous_state"
         fi
     fi
 
@@ -369,6 +414,7 @@ main() {
     focused="$(focused_workspace_name)"
     focused="${focused:-9}"
     ensure_workspaces_exist
+    log_output_snapshot "before"
 
     if [[ "$target_state" == "mobile" ]]; then
         log "DISPLAY CONNECTION: applying mobile layout"
@@ -405,6 +451,8 @@ main() {
     fi
 
     write_state "$target_state"
+    log_output_snapshot "after"
+    log "DISPLAY CONNECTION: wrote state = $target_state"
 }
 
 main "$@"
