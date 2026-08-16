@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+launcher_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+project_dir="$(cd -- "$(dirname -- "$launcher_path")/.." && pwd)"
+python_bin="$project_dir/.venv/bin/python"
+
+if [[ ! -x "$python_bin" ]]; then
+  printf 'ptt-dictation: Python environment is missing. Run: cd %q && uv sync\n' "$project_dir" >&2
+  exit 1
+fi
+
+# The optional Xet transport stalled on this host; regular HTTP is reliable.
+export HF_HUB_DISABLE_XET="${HF_HUB_DISABLE_XET:-1}"
+
+exec "$python_bin" "$project_dir/ptt_dictation.py" "$@"

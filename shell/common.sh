@@ -180,6 +180,7 @@ alias ...='cd ../..' # Move up two directory levels
 # making sudo work with aliases
 alias sudo='sudo '
 
+alias codexa='codex --ask-for-approval never --sandbox workspace-write'
 # Shell utilitiees
 alias ll="ls -lh"
 alias ls="ls --color=auto"

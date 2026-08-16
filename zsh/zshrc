@@ -99,6 +99,40 @@ bindkey -M vicmd '^G' edit-command-line
 bindkey '^X^E' edit-command-line
 
 
+# Emit OSC 133 prompt markers directly for tmux copy-mode prompt jumping.
+autoload -Uz add-zsh-hook
+typeset -gi _tmux_prompt_mark_open=0
+typeset -g _tmux_prompt_mark_ps1=$'%{\033]133;A\033\\%}'
+typeset -g _tmux_prompt_mark_ps2=$'%{\033]133;A;k=s\033\\%}'
+
+if [[ -n "$TMUX" ]]; then
+  [[ $PS1 == *$_tmux_prompt_mark_ps1* ]] || PS1="${_tmux_prompt_mark_ps1}${PS1}"
+  [[ $PS2 == *$_tmux_prompt_mark_ps2* ]] || PS2="${_tmux_prompt_mark_ps2}${PS2}"
+fi
+
+_tmux_prompt_mark_precmd() {
+  local cmd_status=$?
+  emulate -L zsh
+  [[ -n "$TMUX" ]] || return 0
+
+  if (( _tmux_prompt_mark_open )); then
+    printf '\033]133;D;%d\033\\' "$cmd_status"
+  fi
+  _tmux_prompt_mark_open=0
+}
+
+_tmux_prompt_mark_preexec() {
+  emulate -L zsh
+  [[ -n "$TMUX" ]] || return 0
+
+  printf '\033]133;C\033\\'
+  _tmux_prompt_mark_open=1
+}
+
+add-zsh-hook precmd _tmux_prompt_mark_precmd
+add-zsh-hook preexec _tmux_prompt_mark_preexec
+
+
 
 
 # Change cursor shape for different vi modes.

@@ -1,7 +1,6 @@
 [Unit]
 Description=Switch Kanata layers based on focused X11 window
-PartOf=graphical-session.target
-After=graphical-session.target
+After=default.target
 
 [Service]
 Type=simple
@@ -16,4 +15,4 @@ Restart=always
 RestartSec=2
 
 [Install]
-WantedBy=graphical-session.target
+WantedBy=default.target

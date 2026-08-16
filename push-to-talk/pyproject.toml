@@ -1,0 +1,11 @@
+[project]
+name = "ptt-dictation"
+version = "0.1.0"
+description = "Small X11 push-to-talk dictation controller for faster-whisper"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+  "faster-whisper>=1.2.1,<2",
+]
+
+[tool.uv]
+package = false

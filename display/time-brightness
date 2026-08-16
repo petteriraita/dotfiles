@@ -2,10 +2,10 @@
 set -euo pipefail
 
 DAY_START="${DAY_START:-07:30}"
-NIGHT_START="${NIGHT_START:-19:30}"
+NIGHT_START="${NIGHT_START:-23:30}"
 
-LAPTOP_DAY="${LAPTOP_DAY:-70%}"
-LAPTOP_NIGHT="${LAPTOP_NIGHT:-25%}"
+LAPTOP_DAY="${LAPTOP_DAY:-100%}"
+LAPTOP_NIGHT="${LAPTOP_NIGHT:-5%}"
 
 EXTERNAL_DAY="${EXTERNAL_DAY:-100}"
 EXTERNAL_NIGHT="${EXTERNAL_NIGHT:-20}"
@@ -25,22 +25,22 @@ choose_profile() {
     local now_hm=""
 
     case "$requested" in
-        day | night)
-            printf '%s\n' "$requested"
-            return 0
-            ;;
-        auto)
-            now_hm="$(date +%H:%M)"
-            if [[ "$now_hm" < "$DAY_START" || ! "$now_hm" < "$NIGHT_START" ]]; then
-                printf 'night\n'
-            else
-                printf 'day\n'
-            fi
-            ;;
-        *)
-            log "unknown profile '$requested'"
-            exit 1
-            ;;
+    day | night)
+        printf '%s\n' "$requested"
+        return 0
+        ;;
+    auto)
+        now_hm="$(date +%H:%M)"
+        if [[ "$now_hm" < "$DAY_START" || ! "$now_hm" < "$NIGHT_START" ]]; then
+            printf 'night\n'
+        else
+            printf 'day\n'
+        fi
+        ;;
+    *)
+        log "unknown profile '$requested'"
+        exit 1
+        ;;
     esac
 }
 
@@ -140,18 +140,19 @@ main() {
     profile="$(choose_profile "${1:-auto}")"
 
     case "$profile" in
-        day)
-            laptop_target="$LAPTOP_DAY"
-            external_target="$EXTERNAL_DAY"
-            ;;
-        night)
-            laptop_target="$LAPTOP_NIGHT"
-            external_target="$EXTERNAL_NIGHT"
-            ;;
+    day)
+        laptop_target="$LAPTOP_DAY"
+        external_target="$EXTERNAL_DAY"
+        ;;
+    night)
+        laptop_target="$LAPTOP_NIGHT"
+        external_target="$EXTERNAL_NIGHT"
+        ;;
     esac
 
     log "selected profile = $profile"
     set_laptop_brightness "$laptop_target"
+    echo "setting $external_target"
     set_external_brightness "$external_target"
 }
 

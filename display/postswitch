@@ -389,6 +389,20 @@ main() {
     current_lid="$(lid_state)"
     log_mode_context "$previous_state" "$target_state" "$target_signature" "$current_lid"
 
+    # The saved state can lag behind reality if a previous hotplug run was
+    # interrupted or if X already converged the outputs before this script ran.
+    # In that case, trust the live layout, refresh the state file, and avoid
+    # a redundant xrandr apply that would only cause flicker.
+    if mode_layout_matches "$target_state"; then
+        if [[ "$target_state" != "$previous_state" ]]; then
+            write_state "$target_state"
+            log "DISPLAY CONNECTION: live layout already matches $target_state; refreshed stale state file"
+        else
+            log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
+        fi
+        exit 0
+    fi
+
     if [[ "$previous_state" == docked:* || "$previous_state" == clamshell:* ]] && [[ "$target_state" == "mobile" ]]; then
         if ! confirm_internal_only; then
             log "DISPLAY CONNECTION: transient disconnect ignored"
@@ -402,15 +416,7 @@ main() {
         fi
     fi
 
-    # If the detected mode did not change and the live layout already matches,
-    # this was effectively a no-op event such as a charger-triggered wakeup.
-    # Exit before any xrandr apply to avoid visible flicker.
     if [[ "$target_state" == "$previous_state" ]]; then
-        if mode_layout_matches "$target_state"; then
-            log "DISPLAY CONNECTION: stable state unchanged ($target_state); no action"
-            exit 0
-        fi
-
         log "DISPLAY CONNECTION: stable mode $target_state but live layout drifted; reapplying"
     fi
 

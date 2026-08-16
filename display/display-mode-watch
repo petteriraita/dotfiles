@@ -6,6 +6,9 @@ LIBINPUT_BIN="${LIBINPUT_BIN:-libinput}"
 GDBUS_BIN="${GDBUS_BIN:-gdbus}"
 LID_DEVICE_NAME="${LID_DEVICE_NAME:-Lid Switch}"
 SUSPEND_FLAG_FILE="${SUSPEND_FLAG_FILE:-/tmp/display_suspend_in_progress}"
+STATE_FILE="${STATE_FILE:-/tmp/display_state}"
+STARTUP_RETRY_COUNT="${STARTUP_RETRY_COUNT:-20}"
+STARTUP_RETRY_DELAY="${STARTUP_RETRY_DELAY:-1}"
 
 find_lid_device() {
     local name_file=""
@@ -23,6 +26,16 @@ find_lid_device() {
     return 1
 }
 
+startup_converge() {
+    local try=""
+
+    for ((try = 1; try <= STARTUP_RETRY_COUNT; try++)); do
+        "$POSTSWITCH_BIN" || true
+        [[ -s "$STATE_FILE" ]] && return 0
+        sleep "$STARTUP_RETRY_DELAY"
+    done
+}
+
 main() {
     local lid_device=""
     local lid_pid=""
@@ -30,7 +43,7 @@ main() {
 
     lid_device="$(find_lid_device)" || exit 1
     rm -f "$SUSPEND_FLAG_FILE"
-    "$POSTSWITCH_BIN" || true
+    startup_converge
 
     stdbuf -oL "$LIBINPUT_BIN" debug-events --device "$lid_device" 2>/dev/null |
         while IFS= read -r _line; do

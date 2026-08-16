@@ -1575,7 +1575,7 @@ require('lazy').setup({
       -- ... and there is more!
       --  Check out: https://github.com/echasnovski/mini.nvim
       -- adding this one to have the jumps
-      require('mini.jump2d').setup()
+      -- require('mini.jump2d').setup()
     end,
   },
   { -- Highlight, edit, and navigate code
