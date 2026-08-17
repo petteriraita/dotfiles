@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import fcntl
+import hashlib
 import json
 import logging
 from logging.handlers import RotatingFileHandler
@@ -12,6 +13,7 @@ import os
 from pathlib import Path
 import shutil
 import signal
+import socket
 import subprocess
 import sys
 import time
@@ -28,6 +30,10 @@ RUNTIME_HOME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/{APP_NAME}-{os.getu
 STATE_FILE = RUNTIME_HOME / "session.json"
 LOCK_FILE = RUNTIME_HOME / "control.lock"
 LOG_FILE = STATE_HOME / "ptt.log"
+WORKER_SOCKET = RUNTIME_HOME / "whisper.sock"
+WORKER_STATE_FILE = RUNTIME_HOME / "worker.json"
+WORKER_LOCK_FILE = RUNTIME_HOME / "worker.lock"
+WORKER_LOG_FILE = STATE_HOME / "worker.log"
 
 
 def setup_directories() -> None:
@@ -115,6 +121,18 @@ class ControlLock:
         self.handle.close()
 
 
+class WorkerLock:
+    def __enter__(self):
+        setup_directories()
+        self.handle = WORKER_LOCK_FILE.open("a+")
+        fcntl.flock(self.handle.fileno(), fcntl.LOCK_EX)
+        return self
+
+    def __exit__(self, exc_type, exc, tb):
+        fcntl.flock(self.handle.fileno(), fcntl.LOCK_UN)
+        self.handle.close()
+
+
 def process_start_ticks(pid: int) -> int | None:
     try:
         # Field 22 is starttime; account for a process name containing spaces.
@@ -127,6 +145,43 @@ def process_start_ticks(pid: int) -> int | None:
 def process_matches(pid: int, expected_ticks: int | None) -> bool:
     ticks = process_start_ticks(pid)
     return ticks is not None and (expected_ticks is None or ticks == expected_ticks)
+
+
+def worker_signature(config: dict) -> str:
+    payload = {
+        "whisper": config["whisper"],
+        "controller_mtime_ns": Path(__file__).stat().st_mtime_ns,
+    }
+    encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()
+    return hashlib.sha256(encoded).hexdigest()
+
+
+def read_worker_state() -> dict | None:
+    try:
+        return json.loads(WORKER_STATE_FILE.read_text())
+    except FileNotFoundError:
+        return None
+    except (json.JSONDecodeError, OSError) as exc:
+        LOG.error("Invalid worker state: %s", exc)
+        return None
+
+
+def write_worker_state(state: dict) -> None:
+    temporary = RUNTIME_HOME / f"worker.{os.getpid()}.tmp"
+    temporary.write_text(json.dumps(state, indent=2) + "\n")
+    os.chmod(temporary, 0o600)
+    os.replace(temporary, WORKER_STATE_FILE)
+
+
+def remove_worker_files() -> None:
+    WORKER_SOCKET.unlink(missing_ok=True)
+    WORKER_STATE_FILE.unlink(missing_ok=True)
+
+
+def worker_is_alive(state: dict | None) -> bool:
+    if not state:
+        return False
+    return process_matches(int(state.get("pid", 0)), state.get("start_ticks"))
 
 
 def read_state() -> dict | None:
@@ -175,6 +230,201 @@ def active_window_id(config: dict) -> str | None:
         return result.stdout.strip()
     LOG.warning("Could not capture active X11 window: %s", result.stderr.strip())
     return None
+
+
+def terminate_worker_process(state: dict, timeout: float = 3.0) -> None:
+    pid = int(state.get("pid", 0))
+    ticks = state.get("start_ticks")
+    if not process_matches(pid, ticks):
+        return
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline and process_matches(pid, ticks):
+        time.sleep(0.05)
+    if process_matches(pid, ticks):
+        LOG.warning("Whisper worker did not stop after SIGTERM; sending SIGKILL")
+        try:
+            os.killpg(pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+
+
+def ensure_worker(config: dict, wait_until_ready: bool = False) -> bool:
+    settings = config.get("worker", {})
+    if not settings.get("enabled", True):
+        return False
+
+    signature = worker_signature(config)
+    state_to_stop = None
+    with WorkerLock():
+        state = read_worker_state()
+        if worker_is_alive(state):
+            if state.get("signature") == signature:
+                existing = True
+            else:
+                LOG.info("Restarting Whisper worker because its configuration changed")
+                state_to_stop = state
+                existing = False
+        else:
+            if state:
+                LOG.warning("Cleaning stale Whisper worker state")
+            remove_worker_files()
+            existing = False
+
+    if state_to_stop:
+        terminate_worker_process(state_to_stop)
+        with WorkerLock():
+            current = read_worker_state()
+            if current and current.get("pid") == state_to_stop.get("pid"):
+                remove_worker_files()
+
+    if not existing:
+        with WorkerLock():
+            # Another controller may have created the replacement while this
+            # process waited for an outdated worker to stop.
+            state = read_worker_state()
+            if worker_is_alive(state) and state.get("signature") == signature:
+                existing = True
+            else:
+                remove_worker_files()
+                worker_log = WORKER_LOG_FILE.open("ab", buffering=0)
+                try:
+                    process = subprocess.Popen(
+                        [sys.executable, str(Path(__file__).resolve()), "_worker"],
+                        stdin=subprocess.DEVNULL,
+                        stdout=worker_log,
+                        stderr=worker_log,
+                        start_new_session=True,
+                    )
+                finally:
+                    worker_log.close()
+                state = {
+                    "pid": process.pid,
+                    "start_ticks": process_start_ticks(process.pid),
+                    "phase": "starting",
+                    "signature": signature,
+                    "started_at": time.time(),
+                }
+                write_worker_state(state)
+                LOG.info("Whisper worker starting: pid=%s", process.pid)
+
+    if wait_until_ready:
+        timeout = float(settings.get("startup_timeout_seconds", 20))
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            with WorkerLock():
+                state = read_worker_state()
+                if not worker_is_alive(state):
+                    raise RuntimeError(f"Whisper worker exited; see {WORKER_LOG_FILE}")
+                if state.get("phase") == "ready" and WORKER_SOCKET.exists():
+                    return True
+            time.sleep(0.05)
+        raise RuntimeError(f"Whisper worker was not ready after {timeout:.1f}s")
+    return True
+
+
+def worker_rpc(config: dict, request: dict, response_timeout: float | None = None) -> dict:
+    settings = config.get("worker", {})
+    connect_timeout = float(settings.get("startup_timeout_seconds", 20))
+    deadline = time.monotonic() + connect_timeout
+    connection = None
+    try:
+        while True:
+            candidate = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+            try:
+                candidate.connect(str(WORKER_SOCKET))
+                connection = candidate
+                break
+            except (FileNotFoundError, ConnectionRefusedError):
+                candidate.close()
+                if time.monotonic() >= deadline:
+                    raise RuntimeError(
+                        f"Whisper worker socket was unavailable after {connect_timeout:.1f}s"
+                    )
+                time.sleep(0.05)
+        connection.settimeout(
+            response_timeout
+            if response_timeout is not None
+            else float(settings.get("request_timeout_seconds", 300))
+        )
+        connection.sendall(json.dumps(request).encode("utf-8") + b"\n")
+        received = bytearray()
+        while not received.endswith(b"\n"):
+            chunk = connection.recv(65536)
+            if not chunk:
+                raise RuntimeError("Whisper worker closed the connection without a response")
+            received.extend(chunk)
+            if len(received) > 10_000_000:
+                raise RuntimeError("Whisper worker response exceeded 10 MB")
+        response = json.loads(received)
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Whisper worker request failed: {exc}") from exc
+    finally:
+        if connection is not None:
+            connection.close()
+    if not response.get("ok"):
+        raise RuntimeError(response.get("error", "Whisper worker reported an unknown error"))
+    return response
+
+
+def worker_memory_mib(pid: int) -> float | None:
+    try:
+        for line in Path(f"/proc/{pid}/status").read_text().splitlines():
+            if line.startswith("VmRSS:"):
+                return int(line.split()[1]) / 1024
+    except (FileNotFoundError, PermissionError, ValueError, IndexError):
+        pass
+    return None
+
+
+def worker_status(config: dict) -> int:
+    with WorkerLock():
+        state = read_worker_state()
+        if not worker_is_alive(state):
+            print("stopped")
+            return 1
+        pid = int(state["pid"])
+        phase = state.get("phase", "unknown")
+        memory = worker_memory_mib(pid)
+    detail = f", memory={memory:.0f} MiB" if memory is not None else ""
+    print(f"{phase} (pid {pid}{detail})")
+    return 0 if phase == "ready" else 2
+
+
+def worker_start(config: dict) -> int:
+    if not config.get("worker", {}).get("enabled", True):
+        raise RuntimeError("Whisper worker is disabled in the configuration")
+    ensure_worker(config, wait_until_ready=True)
+    return worker_status(config)
+
+
+def worker_stop(config: dict) -> int:
+    with WorkerLock():
+        state = read_worker_state()
+    if not worker_is_alive(state):
+        with WorkerLock():
+            remove_worker_files()
+        print("stopped")
+        return 0
+    try:
+        worker_rpc(config, {"command": "shutdown"}, response_timeout=3)
+    except RuntimeError as exc:
+        LOG.warning("Graceful Whisper worker shutdown failed: %s", exc)
+        terminate_worker_process(state)
+    deadline = time.monotonic() + 3
+    while time.monotonic() < deadline and worker_is_alive(state):
+        time.sleep(0.05)
+    if worker_is_alive(state):
+        terminate_worker_process(state)
+    with WorkerLock():
+        current = read_worker_state()
+        if not current or current.get("pid") == state.get("pid"):
+            remove_worker_files()
+    print("stopped")
+    return 0
 
 
 def start_recording(config: dict) -> int:
@@ -240,6 +490,12 @@ def start_recording(config: dict) -> int:
 
     LOG.info("Recording started: pid=%s session=%s", process.pid, session_id)
     notify(config, "Dictation: recording", "Release the shortcut to transcribe")
+    try:
+        ensure_worker(config)
+    except Exception as exc:
+        # Recording remains usable: stop will retry the worker and ultimately
+        # fall back to direct in-process transcription.
+        LOG.warning("Could not warm Whisper worker during recording: %s", exc)
     return 0
 
 
@@ -280,18 +536,17 @@ def wav_duration(path: Path) -> float:
         raise RuntimeError(f"Recorded WAV is invalid: {exc}") from exc
 
 
-def transcribe_audio(config: dict, audio_path: Path) -> tuple[str, dict]:
+def load_whisper_model(config: dict):
     from faster_whisper import WhisperModel
 
     settings = config["whisper"]
     cache_root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / APP_NAME
     cache_root.mkdir(mode=0o700, parents=True, exist_ok=True)
-    language = settings.get("language") or None
     LOG.info(
         "Loading model=%s device=%s compute_type=%s",
         settings["model"], settings["device"], settings["compute_type"],
     )
-    model = WhisperModel(
+    return WhisperModel(
         settings["model"],
         device=settings.get("device", "cpu"),
         compute_type=settings.get("compute_type", "int8"),
@@ -299,6 +554,11 @@ def transcribe_audio(config: dict, audio_path: Path) -> tuple[str, dict]:
         num_workers=int(settings.get("num_workers", 1)),
         download_root=str(cache_root),
     )
+
+
+def transcribe_with_model(model, config: dict, audio_path: Path) -> tuple[str, dict]:
+    settings = config["whisper"]
+    language = settings.get("language") or None
     segments, info = model.transcribe(
         str(audio_path),
         language=language,
@@ -314,6 +574,122 @@ def transcribe_audio(config: dict, audio_path: Path) -> tuple[str, dict]:
         "duration": info.duration,
     }
     return text, metadata
+
+
+def transcribe_audio_direct(config: dict, audio_path: Path) -> tuple[str, dict]:
+    LOG.info("Using direct Whisper fallback")
+    model = load_whisper_model(config)
+    return transcribe_with_model(model, config, audio_path)
+
+
+def run_worker(config: dict) -> int:
+    setup_directories()
+    running = [True]
+
+    def request_shutdown(signum, frame) -> None:
+        running[0] = False
+
+    signal.signal(signal.SIGTERM, request_shutdown)
+    signal.signal(signal.SIGINT, request_shutdown)
+    WORKER_SOCKET.unlink(missing_ok=True)
+    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        server.bind(str(WORKER_SOCKET))
+        os.chmod(WORKER_SOCKET, 0o600)
+        server.listen(4)
+        server.settimeout(0.5)
+
+        load_started = time.monotonic()
+        model = load_whisper_model(config)
+        load_seconds = time.monotonic() - load_started
+        with WorkerLock():
+            state = read_worker_state()
+            if state and int(state.get("pid", 0)) == os.getpid():
+                state["phase"] = "ready"
+                state["ready_at"] = time.time()
+                state["model_load_seconds"] = load_seconds
+                write_worker_state(state)
+        LOG.info("Whisper worker ready: pid=%s load_seconds=%.2f", os.getpid(), load_seconds)
+
+        while running[0]:
+            try:
+                connection, _ = server.accept()
+            except socket.timeout:
+                continue
+            with connection:
+                try:
+                    received = bytearray()
+                    while not received.endswith(b"\n"):
+                        chunk = connection.recv(65536)
+                        if not chunk:
+                            raise RuntimeError("Client closed the request early")
+                        received.extend(chunk)
+                        if len(received) > 1_000_000:
+                            raise RuntimeError("Worker request exceeded 1 MB")
+                    request = json.loads(received)
+                    command = request.get("command")
+                    if command == "ping":
+                        response = {"ok": True, "phase": "ready", "pid": os.getpid()}
+                    elif command == "shutdown":
+                        response = {"ok": True}
+                        running[0] = False
+                    elif command == "transcribe":
+                        audio_path = Path(str(request.get("audio_path", ""))).expanduser().resolve()
+                        if not audio_path.is_file():
+                            raise RuntimeError(f"Audio file does not exist: {audio_path}")
+                        started = time.monotonic()
+                        text, metadata = transcribe_with_model(model, config, audio_path)
+                        elapsed = time.monotonic() - started
+                        LOG.info(
+                            "Whisper worker transcription: seconds=%.2f chars=%s path=%s",
+                            elapsed,
+                            len(text),
+                            audio_path,
+                        )
+                        response = {
+                            "ok": True,
+                            "text": text,
+                            "metadata": metadata,
+                            "elapsed_seconds": elapsed,
+                        }
+                    else:
+                        raise RuntimeError(f"Unknown worker command: {command}")
+                except Exception as exc:
+                    LOG.exception("Whisper worker request failed")
+                    response = {"ok": False, "error": str(exc)}
+                try:
+                    connection.sendall(json.dumps(response).encode("utf-8") + b"\n")
+                except (BrokenPipeError, ConnectionResetError):
+                    LOG.warning("Whisper worker client disconnected before receiving its response")
+        return 0
+    finally:
+        server.close()
+        with WorkerLock():
+            state = read_worker_state()
+            if not state or int(state.get("pid", 0)) == os.getpid():
+                remove_worker_files()
+        LOG.info("Whisper worker stopped: pid=%s", os.getpid())
+
+
+def transcribe_audio(config: dict, audio_path: Path) -> tuple[str, dict]:
+    settings = config.get("worker", {})
+    if settings.get("enabled", True):
+        try:
+            ensure_worker(config)
+            response = worker_rpc(
+                config,
+                {"command": "transcribe", "audio_path": str(audio_path)},
+            )
+            LOG.info(
+                "Used resident Whisper worker: elapsed_seconds=%.2f",
+                float(response.get("elapsed_seconds", 0)),
+            )
+            return str(response["text"]), dict(response["metadata"])
+        except Exception as exc:
+            if not settings.get("fallback_to_direct", True):
+                raise
+            LOG.warning("Resident Whisper worker failed; using direct fallback: %s", exc)
+    return transcribe_audio_direct(config, audio_path)
 
 
 def set_clipboard(config: dict, text: str) -> None:
@@ -585,6 +961,10 @@ def doctor(config: dict) -> int:
     print(f"config: {os.environ.get('PTT_CONFIG', DEFAULT_CONFIG)}")
     print(f"runtime: {RUNTIME_HOME}")
     print(f"log: {LOG_FILE}")
+    print(f"worker log: {WORKER_LOG_FILE}")
+    worker = read_worker_state()
+    worker_phase = worker.get("phase", "unknown") if worker_is_alive(worker) else "stopped"
+    print(f"worker: {worker_phase}")
     try:
         import faster_whisper
         import ctranslate2
@@ -633,6 +1013,9 @@ def build_parser() -> argparse.ArgumentParser:
     toggle_parser.add_argument("--no-paste", action="store_true")
     subparsers.add_parser("status", help="show the current controller phase")
     subparsers.add_parser("doctor", help="check commands, display, and Python dependencies")
+    subparsers.add_parser("worker-start", help="start and warm the resident Whisper worker")
+    subparsers.add_parser("worker-status", help="show resident Whisper worker status")
+    subparsers.add_parser("worker-stop", help="stop the resident Whisper worker")
     transcribe_parser = subparsers.add_parser("transcribe-file", help="transcribe an existing audio file")
     transcribe_parser.add_argument("path", type=Path)
     transcribe_parser.add_argument("--paste", action="store_true")
@@ -646,6 +1029,8 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] == "_worker":
+        return run_worker(load_config())
     args = build_parser().parse_args()
     config = load_config()
     if args.command == "start":
@@ -660,6 +1045,12 @@ def main() -> int:
         return status()
     if args.command == "doctor":
         return doctor(config)
+    if args.command == "worker-start":
+        return worker_start(config)
+    if args.command == "worker-status":
+        return worker_status(config)
+    if args.command == "worker-stop":
+        return worker_stop(config)
     if args.command == "transcribe-file":
         return transcribe_file(config, args.path, args.paste)
     if args.command == "paste-test":

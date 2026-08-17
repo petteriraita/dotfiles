@@ -8,16 +8,24 @@ Codex CLI. It never presses Enter.
 
 ```text
 key down -> `start` -> pw-record -> private WAV in $XDG_RUNTIME_DIR
-key up   -> `stop`  -> finalize WAV -> faster-whisper -> xclip -> xdotool paste
-                                               |
-                                               `-> WAV deleted in finally
+                  `-> start/warm resident large-v3-turbo worker
+
+key up   -> `stop` -> finalize WAV -> resident worker -> xclip -> xdotool paste
+                                          |              |
+                                          |              `-> no Enter
+                                          `-> direct fallback if unavailable
 ```
 
 - `pw-record` is the native PipeWire recorder. With no explicit target it follows
   PipeWire's current default source.
 - faster-whisper runs `large-v3-turbo` through CTranslate2 on the CPU with INT8.
-  This machine's Radeon 860M is not supported by CTranslate2's prebuilt GPU path;
-  the Ryzen CPU has AVX-512 and is the simplest supported option.
+  A private Unix-socket worker keeps the model loaded between dictations and
+  starts warming when recording begins. This machine's Radeon 860M is not
+  exposed as a supported CTranslate2 GPU, so the eight physical Ryzen CPU cores
+  remain the reliable backend.
+- If the worker is stopped, stale, or crashes during a request, the controller
+  recreates it automatically and retains the original direct-transcription path
+  as a final fallback. Worker failure cannot create a second recorder.
 - `xclip` owns the X11 clipboard and `xdotool` sends one `Ctrl+Shift+V`. This is
   much more reliable in terminals than simulating every character.
 - The X11 window focused when recording starts is remembered and refocused before
@@ -86,6 +94,12 @@ compute_type = "int8"
 language = "en"               # skip automatic detection for English dictation
 cpu_threads = 8
 
+[worker]
+enabled = true
+startup_timeout_seconds = 20.0
+request_timeout_seconds = 300.0
+fallback_to_direct = true
+
 [paste]
 hotkey = "ctrl+shift+v"       # appropriate for kitty and most terminals
 focus_original_window = true
@@ -103,9 +117,18 @@ language = ""
 Set `PTT_CONFIG=/absolute/path/to/file.toml` to replace the project config
 entirely.
 
-If CPU transcription proves too slow, try `model = "small.en"` for English or
-`model = "medium"` for multilingual speech. The requested `large-v3-turbo` is
-the tested default and fits this machine's 24 GB RAM.
+The worker has no artificial RAM cap. On this machine it measured about 976 MiB
+immediately after loading and about 1.1 GiB after transcription, comfortably
+within the available memory. `large-v3-turbo` remains the tested default.
+
+### What beam size means
+
+Whisper generates text token by token. `beam_size = 5` keeps and compares up to
+five promising token sequences while decoding instead of committing immediately
+to the single highest-scoring next token. This can help with ambiguous speech,
+names, and technical wording. A beam size of 1 is greedy decoding and may be
+faster, but it can reduce accuracy. Beam size is not a model-size or RAM limit;
+this project intentionally leaves it at 5.
 
 ## Commands
 
@@ -116,6 +139,9 @@ bin/ptt-dictation cancel
 bin/ptt-dictation status
 bin/ptt-dictation toggle
 bin/ptt-dictation doctor
+bin/ptt-dictation worker-start
+bin/ptt-dictation worker-status
+bin/ptt-dictation worker-stop
 ```
 
 - `start` begins recording in the background, remembers the focused X11
@@ -126,6 +152,11 @@ bin/ptt-dictation doctor
 - `cancel` discards an active recording without running Whisper.
 - `toggle` supports a press-once/press-again binding, but press/release bindings
   provide the desired push-to-talk behavior.
+- `worker-start` loads Turbo and waits until it is ready. Normal Page Down usage
+  starts it automatically, so this command is mainly diagnostic.
+- `worker-status` shows the phase, PID, and current resident memory.
+- `worker-stop` releases the resident model memory. The next recording starts it
+  again automatically.
 
 ## Exact i3 binding
 
@@ -224,6 +255,10 @@ default-microphone recording, `large-v3-turbo` transcription, cleanup, and the
 return to `idle`. A separate disposable kitty/tmux test verified actual X11
 clipboard insertion without Enter and restored both focus and clipboard.
 
+The resident-worker tests additionally verified cold startup, two requests on
+the same PID, clean shutdown, automatic recreation after an unexpected exit,
+and direct fallback after a simulated worker failure.
+
 ## Diagnostics
 
 Run the built-in check first:
@@ -231,6 +266,7 @@ Run the built-in check first:
 ```bash
 bin/ptt-dictation doctor
 bin/ptt-dictation status
+bin/ptt-dictation worker-status
 ```
 
 Watch controller and component logs:
@@ -239,6 +275,7 @@ Watch controller and component logs:
 tail -f ~/.local/state/ptt-dictation/ptt.log
 tail -f ~/.local/state/ptt-dictation/recorder.log
 tail -f ~/.local/state/ptt-dictation/clipboard.log
+tail -f ~/.local/state/ptt-dictation/worker.log
 ```
 
 The log files are all under `~/.local/state/ptt-dictation/`:
@@ -248,6 +285,9 @@ The log files are all under `~/.local/state/ptt-dictation/`:
   inspect.
 - `recorder.log` contains errors written by `pw-record` and PipeWire.
 - `clipboard.log` contains errors written by `xclip`.
+- `worker.log` captures uncaught startup failures from the resident Whisper
+  process. Normal worker lifecycle and request timings are recorded in
+  `ptt.log`.
 
 An empty `recorder.log` or `clipboard.log` is normal when that component has not
 reported an error.
@@ -278,7 +318,9 @@ PipeWire connection errors.
 ```bash
 du -sh ~/.cache/ptt-dictation
 bin/ptt-dictation doctor
+bin/ptt-dictation worker-status
 tail -n 100 ~/.local/state/ptt-dictation/ptt.log
+tail -n 100 ~/.local/state/ptt-dictation/worker.log
 ```
 
 - A first-run network failure affects only the model download; retry the command.
@@ -289,6 +331,8 @@ tail -n 100 ~/.local/state/ptt-dictation/ptt.log
   can reduce transcription quality.
 - To force a clean model download, remove only `~/.cache/ptt-dictation/` and run
   the known-sample test again.
+- If the worker appears stale, run `bin/ptt-dictation worker-stop`; the next
+  recording recreates it. Direct fallback remains available if startup fails.
 
 ### Clipboard/paste failures
 
@@ -313,7 +357,8 @@ clipboard-only success rather than losing the completed transcription.
 No new system service or Fedora package was installed. The existing Kanata and
 i3 configurations were updated. To remove the project completely:
 
-1. Run `bin/ptt-dictation cancel` if recording.
+1. Run `bin/ptt-dictation cancel` if recording, then
+   `bin/ptt-dictation worker-stop`.
 2. Remove the three i3 lines shown above and run `i3-msg reload`.
 3. Remove any Kanata `f13` mapping you added.
 4. Remove generated data and the project:
