@@ -83,7 +83,7 @@ Defaults are in `config.toml`. The main settings are:
 model = "large-v3-turbo"
 device = "cpu"
 compute_type = "int8"
-language = ""                 # automatic detection; use "en" to force English
+language = "en"               # skip automatic detection for English dictation
 cpu_threads = 8
 
 [paste]
@@ -92,11 +92,12 @@ focus_original_window = true
 ```
 
 For uncommitted machine-specific changes, create `config.local.toml`. It is
-ignored by Git and is merged over the defaults. For example:
+ignored by Git and is merged over the defaults. For example, restore automatic
+language detection with:
 
 ```toml
 [whisper]
-language = "en"
+language = ""
 ```
 
 Set `PTT_CONFIG=/absolute/path/to/file.toml` to replace the project config
@@ -282,8 +283,10 @@ tail -n 100 ~/.local/state/ptt-dictation/ptt.log
 
 - A first-run network failure affects only the model download; retry the command.
 - An empty transcription usually means the recording was silent or too short.
-- For lower latency, set `language = "en"`, reduce `beam_size`, or select a
-  smaller model in `config.local.toml`.
+- English is forced by default to avoid language-detection latency. Set
+  `language = ""` in `config.local.toml` only when multilingual detection is
+  needed. Reducing `beam_size` or selecting a smaller model may be faster but
+  can reduce transcription quality.
 - To force a clean model download, remove only `~/.cache/ptt-dictation/` and run
   the known-sample test again.
 

@@ -2,8 +2,9 @@
 model = "large-v3-turbo"
 device = "cpu"
 compute_type = "int8"
-# Leave blank for automatic language detection, or use e.g. "en".
-language = ""
+# Dictation is English-only; skipping automatic detection improves consistency
+# for short prompts and avoids a small amount of work.
+language = "en"
 beam_size = 5
 vad_filter = true
 cpu_threads = 8
