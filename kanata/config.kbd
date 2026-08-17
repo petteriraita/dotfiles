@@ -26,20 +26,31 @@ left-hand-keys-no-mods  ( q w e r t s d g z x v b )
 right-hand-keys-no-mods ( y u i o h k l n m . / )
 )
 
-;; 10, 10, 10 +1, 10, 3 ==> 44
+;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (defsrc
           1      2      3      4      5           6      7      8      9      0
           q      w      e      r      t           y      u      i      o      p
    caps   a      s      d      f      g           h      j      k      l      ;
           z      x      c      v      b           n      m      ,      .      /
-                      lalt          spc           ralt
+                      lalt          spc           ralt          pgdn
+)
+
+(deffakekeys
+  ptt-start f13
+  ptt-stop  f14
 )
 
 
 
 
-
 (defalias
+  ;; Physical Page Down: tap F13 on press and F14 on release. i3 runs
+  ;; the user-session recorder commands for the two distinct virtual keys.
+  ptt (multi
+        (on-press-fakekey ptt-start tap)
+        (on-release-fakekey ptt-stop tap)
+      )
+
   ;; Main mod-tap: Nav layer when held, Space when tapped.
   nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
   
@@ -153,13 +164,13 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 ;; )
 
 
-;; 10, 10, 10 +1, 10, 3 ==> 44
+;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer base
           1      2      3      4      5           6      7      8      9      0
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
-                       @lalt          @nav            @ralt
+                       @lalt          @nav            @ralt          @ptt
 )
 
 ;; Plain layer for games that should not see tap-hold or home-row mods.
@@ -168,32 +179,32 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      p
    @caps  a      s      d      f      g           h      j      k      l      @semi
           z      x      c      v      b           n      m      ,      .      /
-                       lalt          spc          ralt
+                       lalt          spc          ralt          @ptt
 )
 
-;; 10, 10, 10 +1, 10, 3 ==> 44
+;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer navigation
           XX     XX     XX     XX     XX          XX     XX     XX     XX     XX
           XX     XX     XX     XX     XX          home   pgdn   pgup   end    _
    _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
-                       _            _             _
+                       _            _             _             @ptt
 )
-;; 10, 10, 10 +1, 10, 3 ==> 44
+;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer numpad
           XX   XX   XX   XX   XX        XX    XX   XX   XX  XX
           XX   XX   XX   XX   XX        XX    1    2    3   XX
    XX     XX   XX   XX   XX   XX        del   4    5    6   0
           XX   XX   XX   XX   XX        XX    7    8    9   XX
-               XX          XX           XX
+               XX          XX           XX          @ptt
 )
 
 
-;; 10, 10, 10 +1, 10, 3 ==> 44
+;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer symbols
          @awithring    @ae        @addots    @oslash          @oddots    @udots    @eszett    XX     XX    XX
          @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
     _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
          @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
-                _            spc             _
+                _            spc             _             @ptt
 )

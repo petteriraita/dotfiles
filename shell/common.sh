@@ -172,6 +172,11 @@ p() {
     echo "copied $abs"
 }
 
+### making a shortcut function to say that codexa is sandbox and should work with resume etc
+codexa() {
+    codex --ask-for-approval never --sandbox workspace-write "$@"
+}
+
 # MY OWN SETTINGS
 #
 # CLI TOOLS
@@ -180,7 +185,6 @@ alias ...='cd ../..' # Move up two directory levels
 # making sudo work with aliases
 alias sudo='sudo '
 
-alias codexa='codex --ask-for-approval never --sandbox workspace-write'
 # Shell utilitiees
 alias ll="ls -lh"
 alias ls="ls --color=auto"

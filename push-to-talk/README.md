@@ -66,6 +66,9 @@ ln -s /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation ~/.local/bin/ptt-dict
 ptt-dictation doctor
 ```
 
+This dotfiles repository also exposes `bin/ptt-dictation`, so from
+`/home/pt/dev/dotfiles` the relative command works as written.
+
 The first transcription downloads about 1.6 GB of model data to
 `~/.cache/ptt-dictation/`. Later runs reuse it. The launcher disables Hugging
 Face's optional Xet transfer path because it stalled on this host; ordinary HTTP
@@ -114,7 +117,9 @@ bin/ptt-dictation toggle
 bin/ptt-dictation doctor
 ```
 
-- `start` begins recording and remembers the focused X11 window.
+- `start` begins recording in the background, remembers the focused X11
+  window, and returns to the shell immediately. Returning to the prompt does
+  not mean recording stopped; use `status` to confirm it is active.
 - `stop` stops, transcribes, copies, and pastes without Enter.
 - `stop --no-paste` prints the transcription instead.
 - `cancel` discards an active recording without running Whisper.
@@ -123,13 +128,15 @@ bin/ptt-dictation doctor
 
 ## Exact i3 binding
 
-The recommended virtual key is `F13`, especially if Kanata will produce the
-key. Add these exact lines to the user i3 configuration:
+Kanata taps virtual F13 when physical Page Down is pressed and virtual F14 when
+it is released. On this X11 keyboard map those appear as raw keycodes 191 and
+192 without keysyms, so these bindings are installed in
+`/home/pt/dev/dotfiles/i3config`:
 
 ```i3config
 set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation
-bindsym --no-repeat F13 exec --no-startup-id $ptt start
-bindsym --release --no-repeat F13 exec --no-startup-id $ptt stop
+bindcode 191 exec --no-startup-id $ptt start
+bindcode 192 exec --no-startup-id $ptt stop
 ```
 
 Then reload i3:
@@ -138,20 +145,17 @@ Then reload i3:
 i3-msg reload
 ```
 
-For a physical key handled directly by i3, replace both occurrences of `F13`
-with its i3 name, such as `Pause`.
-
 ### Kanata
 
 Kanata is currently a root system service on this machine. Do not run the
 dictation command directly from Kanata: it would inherit the wrong user,
 `DISPLAY`, clipboard, cache, and state directories.
 
-Instead, map the desired physical key or Kanata layer position to `f13`. Kanata
-will emit normal F13 key-down and key-up events, and the user-session i3 bindings
-above will run the two commands with the correct X11 environment. The exact
-Kanata layer cell depends on which physical key you choose; replace that cell's
-action with `f13` in `/home/pt/dev/dotfiles/kanata/config.kbd`.
+The physical `pgdn` key is included in `defsrc` and runs the `@ptt` action on
+every layer. `@ptt` taps F13 on physical press and F14 on physical release. The
+user-session i3 bindings above run the two commands with the correct X11
+environment. The separate `pgdn` action already present on the navigation layer
+is unchanged, so that layer combination still produces normal Page Down.
 
 ## Tests
 
@@ -211,7 +215,7 @@ bin/ptt-dictation start
 bin/ptt-dictation stop --no-paste
 ```
 
-Then add/reload the i3 binding, focus Codex CLI, hold F13, dictate, and release.
+Focus Codex CLI, hold the physical Page Down key, dictate, and release it.
 The result should appear at the prompt without being submitted.
 
 The automated development test verified duplicate `start`, live `status`, real
@@ -234,6 +238,25 @@ Watch controller and component logs:
 tail -f ~/.local/state/ptt-dictation/ptt.log
 tail -f ~/.local/state/ptt-dictation/recorder.log
 tail -f ~/.local/state/ptt-dictation/clipboard.log
+```
+
+The log files are all under `~/.local/state/ptt-dictation/`:
+
+- `ptt.log` is the main log. It records start/stop, Whisper results, paste
+  delivery, warnings, and Python tracebacks. Usually, this is the first file to
+  inspect.
+- `recorder.log` contains errors written by `pw-record` and PipeWire.
+- `clipboard.log` contains errors written by `xclip`.
+
+An empty `recorder.log` or `clipboard.log` is normal when that component has not
+reported an error.
+
+To inspect recent failures without following the files continuously:
+
+```bash
+tail -n 100 ~/.local/state/ptt-dictation/ptt.log
+grep -E ' (ERROR|WARNING) ' ~/.local/state/ptt-dictation/ptt.log | tail -n 30
+journalctl -u kanata.service -n 100 --no-pager
 ```
 
 ### Microphone failures
@@ -267,6 +290,8 @@ tail -n 100 ~/.local/state/ptt-dictation/ptt.log
 ### Clipboard/paste failures
 
 ```bash
+tail -n 100 ~/.local/state/ptt-dictation/ptt.log
+tail -n 100 ~/.local/state/ptt-dictation/clipboard.log
 printf 'clipboard test' | xclip -selection clipboard
 xclip -selection clipboard -out
 xdotool getactivewindow getwindowname
@@ -275,12 +300,15 @@ xdotool getactivewindow getwindowname
 Verify `DISPLAY=:0` exists in the environment that launches the command. If text
 is copied but not pasted, adjust `[paste].hotkey`; GUI editors generally use
 `ctrl+v`, while kitty uses `ctrl+shift+v`. The transcription remains available
-in the clipboard if simulated paste fails.
+in the clipboard if simulated paste or restoration of the original window
+fails. Paste it manually with `Ctrl+Shift+V` in a terminal or `Ctrl+V` in most
+GUI applications. A stale or unresponsive original window is treated as a
+clipboard-only success rather than losing the completed transcription.
 
 ## Uninstall and cleanup
 
-No system service, Fedora package, i3 line, or Kanata line was installed by this
-project. To remove it completely:
+No new system service or Fedora package was installed. The existing Kanata and
+i3 configurations were updated. To remove the project completely:
 
 1. Run `bin/ptt-dictation cancel` if recording.
 2. Remove the three i3 lines shown above and run `i3-msg reload`.
@@ -290,6 +318,8 @@ project. To remove it completely:
 ```bash
 cd /home/pt/dev/dotfiles
 unlink ~/.local/bin/ptt-dictation
+unlink ~/bin/ptt-dictation
+unlink /home/pt/dev/dotfiles/bin/ptt-dictation
 rm -rf push-to-talk/.venv
 rm -rf ~/.cache/ptt-dictation ~/.local/state/ptt-dictation
 rm -rf /run/user/$(id -u)/ptt-dictation

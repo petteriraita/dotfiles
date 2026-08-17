@@ -258,3 +258,8 @@ bindsym --whole-window button7 nop
 
 ### bind a key for the keepass
 bindsym $mod+p exec --no-startup-id keepassxc
+
+### push-to-talk: Kanata emits raw keycode 191 on Page Down press, 192 on release
+set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation
+bindcode 191 exec --no-startup-id $ptt start
+bindcode 192 exec --no-startup-id $ptt stop

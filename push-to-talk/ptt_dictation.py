@@ -215,6 +215,16 @@ def start_recording(config: dict) -> int:
         finally:
             recorder_log.close()
 
+        # Do not publish the session until pw-record has survived its startup
+        # window.  The control lock deliberately remains held here: otherwise
+        # a fast key release can let `stop` kill the recorder while `start` is
+        # still checking it, causing `start` to delete the WAV underneath the
+        # transcriber.
+        time.sleep(0.08)
+        if process.poll() is not None:
+            audio_path.unlink(missing_ok=True)
+            raise RuntimeError(f"{recorder} exited immediately; see {STATE_HOME / 'recorder.log'}")
+
         state = {
             "session_id": session_id,
             "phase": "recording",
@@ -227,12 +237,6 @@ def start_recording(config: dict) -> int:
             "started_at": time.time(),
         }
         write_state(state)
-
-    time.sleep(0.08)
-    if process.poll() is not None:
-        with ControlLock():
-            remove_session_files(state)
-        raise RuntimeError(f"{recorder} exited immediately; see {STATE_HOME / 'recorder.log'}")
 
     LOG.info("Recording started: pid=%s session=%s", process.pid, session_id)
     notify(config, "Dictation: recording", "Release the shortcut to transcribe")
@@ -342,24 +346,75 @@ def set_clipboard(config: dict, text: str) -> None:
         raise RuntimeError(f"xclip failed; see {STATE_HOME / 'clipboard.log'}")
 
 
-def copy_and_paste(config: dict, text: str, target_window: str | None) -> None:
+def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
+    """Copy text and best-effort paste it, returning whether paste was sent.
+
+    Clipboard ownership is established first, so a stale or unresponsive X11
+    window can never make the transcription unavailable to the user.
+    """
     paste = config["paste"]
     xdotool = paste.get("xdotool_command", "xdotool")
-    if not shutil.which(xdotool):
-        raise RuntimeError(f"Required paste command not found: {xdotool}")
     set_clipboard(config, text)
+    if not shutil.which(xdotool):
+        LOG.warning("Automatic paste skipped; command is unavailable: %s", xdotool)
+        return False
 
     time.sleep(max(0, int(paste.get("delay_ms", 100))) / 1000)
     if paste.get("focus_original_window", True) and target_window:
-        focused = run_quiet([xdotool, "windowactivate", "--sync", target_window], timeout=5)
-        if focused.returncode:
-            LOG.warning("Could not refocus window %s: %s", target_window, focused.stderr.strip())
-    result = run_quiet(
-        [xdotool, "key", "--clearmodifiers", str(paste.get("hotkey", "ctrl+shift+v"))],
-        timeout=5,
-    )
+        current_window = active_window_id(config)
+        if current_window != target_window:
+            try:
+                # Avoid `--sync`: some X11 applications accept activation but
+                # never satisfy xdotool's synchronous focus wait. Verify focus
+                # ourselves with a short, bounded poll instead.
+                focused = run_quiet([xdotool, "windowactivate", target_window], timeout=2)
+            except (OSError, subprocess.TimeoutExpired) as exc:
+                LOG.warning(
+                    "Automatic paste skipped; could not request focus for window %s: %s",
+                    target_window,
+                    exc,
+                )
+                return False
+            if focused.returncode:
+                LOG.warning(
+                    "Automatic paste skipped; could not refocus window %s: %s",
+                    target_window,
+                    focused.stderr.strip(),
+                )
+                return False
+
+            deadline = time.monotonic() + max(
+                0,
+                int(paste.get("focus_timeout_ms", 1000)),
+            ) / 1000
+            while time.monotonic() < deadline:
+                if active_window_id(config) == target_window:
+                    break
+                time.sleep(0.05)
+            else:
+                LOG.warning(
+                    "Automatic paste skipped; window %s did not receive focus; "
+                    "transcription remains on clipboard",
+                    target_window,
+                )
+                return False
+
+    try:
+        result = run_quiet(
+            [xdotool, "key", "--clearmodifiers", str(paste.get("hotkey", "ctrl+shift+v"))],
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        LOG.warning("Automatic paste failed; transcription remains on clipboard: %s", exc)
+        return False
     if result.returncode:
-        raise RuntimeError(f"xdotool paste failed: {result.stderr.strip()}")
+        LOG.warning(
+            "Automatic paste failed; transcription remains on clipboard: %s",
+            result.stderr.strip(),
+        )
+        return False
+    LOG.info("Paste sent to X11 window=%s chars=%s", target_window or "current", len(text))
+    return True
 
 
 def finish_session(config: dict, no_paste: bool = False) -> int:
@@ -382,7 +437,13 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
         duration = wav_duration(audio_path)
         minimum = float(config["recording"].get("minimum_seconds", 0.25))
         if duration < minimum:
-            raise RuntimeError(f"Recording was too short ({duration:.2f}s; minimum {minimum:.2f}s)")
+            LOG.info(
+                "Ignoring short recording: %.2fs (minimum %.2fs)",
+                duration,
+                minimum,
+            )
+            notify(config, "Dictation canceled", "Recording was too short")
+            return 0
 
         LOG.info("Recording stopped: %.2fs; transcribing %s", duration, audio_path)
         notify(config, "Dictation: transcribing", f"Processing {duration:.1f} seconds locally")
@@ -392,9 +453,20 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
         LOG.info("Transcription complete: chars=%s metadata=%s", len(text), metadata)
         if no_paste:
             print(text)
+            pasted = False
         else:
-            copy_and_paste(config, text, state.get("target_window"))
-        notify(config, "Dictation complete", f"Pasted {len(text)} characters" if not no_paste else text[:100])
+            pasted = copy_and_paste(config, text, state.get("target_window"))
+        if no_paste:
+            notify(config, "Dictation complete", text[:100])
+        elif pasted:
+            notify(config, "Dictation complete", f"Pasted {len(text)} characters")
+        else:
+            notify(
+                config,
+                "Dictation copied",
+                "Automatic paste failed; press Ctrl+Shift+V",
+                urgency="critical",
+            )
         return 0
     finally:
         audio_path.unlink(missing_ok=True)

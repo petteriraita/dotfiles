@@ -24,6 +24,8 @@ xdotool_command = "xdotool"
 hotkey = "ctrl+shift+v"
 delay_ms = 100
 focus_original_window = true
+# Maximum time to wait after asking i3 to restore the original X11 window.
+focus_timeout_ms = 1000
 
 [notifications]
 enabled = true
