@@ -36,6 +36,10 @@ key up   -> `stop` -> finalize WAV -> resident worker -> xclip -> xdotool paste
   success, failure, or cancellation.
 - Logs live in `~/.local/state/ptt-dictation/`. Models live in the normal cache at
   `~/.cache/ptt-dictation/`.
+- The completion notification reports recording length, release-to-result
+  latency, transcribed word count, and speaking words per minute (WPM). The WPM
+  uses finalized audio duration; release latency runs from the i3 `stop` command
+  until paste has been sent (or the clipboard fallback is ready).
 
 ## Dependencies
 
@@ -45,8 +49,9 @@ Runtime Fedora packages:
 - `xclip`
 - `xdotool`
 - `libnotify` (`notify-send`)
+- `httpd-core` (`rotatelogs`, used only as a lightweight bounded-log sink)
 
-All four are already installed on this Fedora 43 machine. `ffmpeg`, `arecord`,
+All five are already installed on this Fedora 43 machine. `ffmpeg`, `arecord`,
 and `parec` were inspected but are not needed. No sudo installation was performed.
 
 Python dependencies are locked in `uv.lock`; the direct dependency is:
@@ -281,13 +286,20 @@ tail -f ~/.local/state/ptt-dictation/worker.log
 The log files are all under `~/.local/state/ptt-dictation/`:
 
 - `ptt.log` is the main log. It records start/stop, Whisper results, paste
-  delivery, warnings, and Python tracebacks. Usually, this is the first file to
-  inspect.
+  delivery, warnings, Python tracebacks, and one `Dictation metrics` line per
+  completed recording. That line includes recording duration,
+  release-to-result latency, word count, WPM, and whether automatic paste
+  succeeded. Usually, this is the first file to inspect.
 - `recorder.log` contains errors written by `pw-record` and PipeWire.
 - `clipboard.log` contains errors written by `xclip`.
 - `worker.log` captures uncaught startup failures from the resident Whisper
   process. Normal worker lifecycle and request timings are recorded in
   `ptt.log`.
+
+`ptt.log` rotates at 1 MB and retains three backups. Each component log retains
+its current 1 MB file and one 1 MB backup, including output produced during one
+long-running process. The complete log directory is therefore bounded to
+approximately 10 MB (with a small allowance for the final write at rotation).
 
 An empty `recorder.log` or `clipboard.log` is normal when that component has not
 reported an error.

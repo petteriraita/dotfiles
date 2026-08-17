@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
@@ -11,6 +12,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
+import re
 import shutil
 import signal
 import socket
@@ -34,6 +36,10 @@ WORKER_SOCKET = RUNTIME_HOME / "whisper.sock"
 WORKER_STATE_FILE = RUNTIME_HOME / "worker.json"
 WORKER_LOCK_FILE = RUNTIME_HOME / "worker.lock"
 WORKER_LOG_FILE = STATE_HOME / "worker.log"
+ROTATELOGS_COMMAND = "rotatelogs"
+COMPONENT_LOG_SIZE = "1M"
+COMPONENT_LOG_FILES = 2
+_LOG_SINK_PROCESSES: set[subprocess.Popen] = set()
 
 
 def setup_directories() -> None:
@@ -87,6 +93,50 @@ def run_quiet(command: list[str], **kwargs) -> subprocess.CompletedProcess:
         check=False,
         **kwargs,
     )
+
+
+@contextmanager
+def bounded_component_log(path: Path):
+    """Yield a pipe that retains one 1 MiB component log and one backup."""
+    reap_component_log_sinks()
+    rotatelogs = shutil.which(ROTATELOGS_COMMAND)
+    if not rotatelogs:
+        raise RuntimeError(
+            f"Required log rotation command not found: {ROTATELOGS_COMMAND}"
+        )
+    sink = subprocess.Popen(
+        [
+            rotatelogs,
+            "-f",
+            "-n",
+            str(COMPONENT_LOG_FILES),
+            str(path),
+            COMPONENT_LOG_SIZE,
+        ],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+    )
+    _LOG_SINK_PROCESSES.add(sink)
+    assert sink.stdin is not None
+    try:
+        yield sink.stdin
+    finally:
+        # The launched component retains its own copy of this descriptor. The
+        # rotator receives EOF and exits automatically when that component does.
+        sink.stdin.close()
+
+
+def reap_component_log_sinks() -> int:
+    """Reap completed rotators retained by this controller process."""
+    reaped = 0
+    for sink in list(_LOG_SINK_PROCESSES):
+        if sink.poll() is not None:
+            sink.wait()
+            _LOG_SINK_PROCESSES.remove(sink)
+            reaped += 1
+    return reaped
 
 
 def notify(config: dict, summary: str, body: str = "", urgency: str = "normal") -> None:
@@ -290,8 +340,7 @@ def ensure_worker(config: dict, wait_until_ready: bool = False) -> bool:
                 existing = True
             else:
                 remove_worker_files()
-                worker_log = WORKER_LOG_FILE.open("ab", buffering=0)
-                try:
+                with bounded_component_log(WORKER_LOG_FILE) as worker_log:
                     process = subprocess.Popen(
                         [sys.executable, str(Path(__file__).resolve()), "_worker"],
                         stdin=subprocess.DEVNULL,
@@ -299,8 +348,6 @@ def ensure_worker(config: dict, wait_until_ready: bool = False) -> bool:
                         stderr=worker_log,
                         start_new_session=True,
                     )
-                finally:
-                    worker_log.close()
                 state = {
                     "pid": process.pid,
                     "start_ticks": process_start_ticks(process.pid),
@@ -453,8 +500,7 @@ def start_recording(config: dict) -> int:
             "--format", str(recording.get("sample_format", "s16")),
             str(audio_path),
         ]
-        recorder_log = (STATE_HOME / "recorder.log").open("ab", buffering=0)
-        try:
+        with bounded_component_log(STATE_HOME / "recorder.log") as recorder_log:
             process = subprocess.Popen(
                 command,
                 stdin=subprocess.DEVNULL,
@@ -462,8 +508,6 @@ def start_recording(config: dict) -> int:
                 stderr=recorder_log,
                 start_new_session=True,
             )
-        finally:
-            recorder_log.close()
 
         # Do not publish the session until pw-record has survived its startup
         # window.  The control lock deliberately remains held here: otherwise
@@ -534,6 +578,26 @@ def wav_duration(path: Path) -> float:
             return audio.getnframes() / float(audio.getframerate())
     except (wave.Error, EOFError, OSError) as exc:
         raise RuntimeError(f"Recorded WAV is invalid: {exc}") from exc
+
+
+def transcription_metrics(text: str, recording_seconds: float, result_seconds: float) -> dict:
+    """Return user-facing dictation metrics without launching extra processes."""
+    words = len(re.findall(r"\b\w+(?:['’]\w+)*\b", text, flags=re.UNICODE))
+    words_per_minute = round(words * 60 / recording_seconds) if recording_seconds > 0 else 0
+    return {
+        "recording_seconds": recording_seconds,
+        "result_seconds": result_seconds,
+        "words": words,
+        "words_per_minute": words_per_minute,
+    }
+
+
+def format_completion_metrics(metrics: dict, action: str) -> str:
+    return (
+        f"{action} in {metrics['result_seconds']:.1f}s after release · "
+        f"{metrics['recording_seconds']:.1f}s recording · "
+        f"{metrics['words']} words · {metrics['words_per_minute']} WPM"
+    )
 
 
 def load_whisper_model(config: dict):
@@ -702,8 +766,7 @@ def set_clipboard(config: dict, text: str) -> None:
 
     # xclip intentionally stays alive while it owns the X11 selection. Do not
     # use subprocess.run(): waiting for it would deadlock until ownership moves.
-    clipboard_log = (STATE_HOME / "clipboard.log").open("ab", buffering=0)
-    try:
+    with bounded_component_log(STATE_HOME / "clipboard.log") as clipboard_log:
         owner = subprocess.Popen(
             [clipboard, "-selection", "clipboard", "-in"],
             stdin=subprocess.PIPE,
@@ -715,8 +778,6 @@ def set_clipboard(config: dict, text: str) -> None:
         owner.stdin.write(text.encode("utf-8"))
         owner.stdin.close()
         owner.stdin = None
-    finally:
-        clipboard_log.close()
     time.sleep(0.05)
     if owner.poll() not in (None, 0):
         raise RuntimeError(f"xclip failed; see {STATE_HOME / 'clipboard.log'}")
@@ -794,6 +855,9 @@ def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
 
 
 def finish_session(config: dict, no_paste: bool = False) -> int:
+    # i3 launches this command on key release, so this is the closest reliable
+    # local timestamp for measuring release-to-result latency.
+    release_started = time.monotonic()
     with ControlLock():
         state = read_state()
         if not state:
@@ -832,15 +896,26 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
             pasted = False
         else:
             pasted = copy_and_paste(config, text, state.get("target_window"))
+        metrics = transcription_metrics(text, duration, time.monotonic() - release_started)
+        LOG.info(
+            "Dictation metrics: recording_seconds=%.2f release_to_result_seconds=%.2f "
+            "words=%s words_per_minute=%s pasted=%s",
+            metrics["recording_seconds"],
+            metrics["result_seconds"],
+            metrics["words"],
+            metrics["words_per_minute"],
+            pasted,
+        )
         if no_paste:
-            notify(config, "Dictation complete", text[:100])
+            notify(config, "Dictation complete", format_completion_metrics(metrics, "Ready"))
         elif pasted:
-            notify(config, "Dictation complete", f"Pasted {len(text)} characters")
+            notify(config, "Dictation pasted", format_completion_metrics(metrics, "Pasted"))
         else:
             notify(
                 config,
                 "Dictation copied",
-                "Automatic paste failed; press Ctrl+Shift+V",
+                format_completion_metrics(metrics, "Copied")
+                + "; automatic paste failed—press Ctrl+Shift+V",
                 urgency="critical",
             )
         return 0
@@ -949,6 +1024,7 @@ def doctor(config: dict) -> int:
         config["recording"].get("command", "pw-record"),
         config["paste"].get("clipboard_command", "xclip"),
         config["paste"].get("xdotool_command", "xdotool"),
+        ROTATELOGS_COMMAND,
     ]
     if config["notifications"].get("enabled", True):
         required.append(config["notifications"].get("command", "notify-send"))
