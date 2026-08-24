@@ -44,8 +44,40 @@ class TranscriptionMetricsTests(unittest.TestCase):
         self.assertEqual(metrics["words_per_minute"], 0)
 
 
+class InstanceIsolationTests(unittest.TestCase):
+    def tearDown(self):
+        PTT.STATE_FILE.unlink(missing_ok=True)
+
+    def test_optional_instance_names_do_not_replace_legacy_paths(self):
+        original = PTT.INSTANCE_NAME
+        try:
+            PTT.INSTANCE_NAME = "default"
+            self.assertEqual(PTT.instance_filename("worker.log"), "worker.log")
+            PTT.INSTANCE_NAME = "small"
+            self.assertEqual(PTT.instance_filename("worker.log"), "worker-small.log")
+            self.assertEqual(
+                PTT.instance_filename("whisper.sock"), "whisper-small.sock"
+            )
+        finally:
+            PTT.INSTANCE_NAME = original
+
+    def test_release_from_another_instance_cannot_claim_recording(self):
+        PTT.write_state(
+            {
+                "session_id": "small-session",
+                "instance": "small",
+                "phase": "recording",
+            }
+        )
+
+        self.assertEqual(PTT.finish_session({}, no_paste=True), 0)
+        self.assertEqual(PTT.read_state()["session_id"], "small-session")
+
+
 class BoundedComponentLogTests(unittest.TestCase):
-    @unittest.skipUnless(PTT.shutil.which(PTT.ROTATELOGS_COMMAND), "rotatelogs unavailable")
+    @unittest.skipUnless(
+        PTT.shutil.which(PTT.ROTATELOGS_COMMAND), "rotatelogs unavailable"
+    )
     def test_keeps_only_current_log_and_one_bounded_backup(self):
         log_path = Path(TEST_HOME.name) / "bounded.log"
 
@@ -61,7 +93,9 @@ class BoundedComponentLogTests(unittest.TestCase):
 
         files = sorted(log_path.parent.glob("bounded.log*"))
         self.assertFalse(PTT._LOG_SINK_PROCESSES)
-        self.assertEqual([path.name for path in files], ["bounded.log", "bounded.log.1"])
+        self.assertEqual(
+            [path.name for path in files], ["bounded.log", "bounded.log.1"]
+        )
         # rotatelogs checks the threshold after each write, so the file may
         # contain one additional pipe-sized block beyond 1 MiB.
         self.assertLessEqual(max(path.stat().st_size for path in files), 1_200_000)

@@ -27,15 +27,37 @@ import wave
 APP_NAME = "ptt-dictation"
 PROJECT_DIR = Path(__file__).resolve().parent
 DEFAULT_CONFIG = PROJECT_DIR / "config.toml"
-STATE_HOME = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / APP_NAME
-RUNTIME_HOME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/{APP_NAME}-{os.getuid()}")) / APP_NAME
+INSTANCE_NAME = os.environ.get("PTT_INSTANCE", "default").strip() or "default"
+PROFILE_NAME = os.environ.get("PTT_PROFILE", "").strip()
+if not re.fullmatch(r"[a-zA-Z0-9_-]+", INSTANCE_NAME):
+    raise RuntimeError(f"Invalid PTT_INSTANCE: {INSTANCE_NAME!r}")
+if PROFILE_NAME and not re.fullmatch(r"[a-zA-Z0-9_-]+", PROFILE_NAME):
+    raise RuntimeError(f"Invalid PTT_PROFILE: {PROFILE_NAME!r}")
+
+
+def instance_filename(default_name: str) -> str:
+    """Keep legacy default paths while isolating optional model instances."""
+    if INSTANCE_NAME == "default":
+        return default_name
+    path = Path(default_name)
+    return f"{path.stem}-{INSTANCE_NAME}{path.suffix}"
+
+
+STATE_HOME = (
+    Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) / APP_NAME
+)
+RUNTIME_HOME = (
+    Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/{APP_NAME}-{os.getuid()}")) / APP_NAME
+)
+# Recording state remains global so two hotkeys cannot create two recorders.
 STATE_FILE = RUNTIME_HOME / "session.json"
 LOCK_FILE = RUNTIME_HOME / "control.lock"
-LOG_FILE = STATE_HOME / "ptt.log"
-WORKER_SOCKET = RUNTIME_HOME / "whisper.sock"
-WORKER_STATE_FILE = RUNTIME_HOME / "worker.json"
-WORKER_LOCK_FILE = RUNTIME_HOME / "worker.lock"
-WORKER_LOG_FILE = STATE_HOME / "worker.log"
+LOG_FILE = STATE_HOME / instance_filename("ptt.log")
+# Model workers are per-instance so Turbo and Small can stay loaded together.
+WORKER_SOCKET = RUNTIME_HOME / instance_filename("whisper.sock")
+WORKER_STATE_FILE = RUNTIME_HOME / instance_filename("worker.json")
+WORKER_LOCK_FILE = RUNTIME_HOME / instance_filename("worker.lock")
+WORKER_LOG_FILE = STATE_HOME / instance_filename("worker.log")
 ROTATELOGS_COMMAND = "rotatelogs"
 COMPONENT_LOG_SIZE = "1M"
 COMPONENT_LOG_FILES = 2
@@ -51,7 +73,7 @@ def setup_directories() -> None:
 
 def setup_logging() -> logging.Logger:
     setup_directories()
-    logger = logging.getLogger(APP_NAME)
+    logger = logging.getLogger(f"{APP_NAME}.{INSTANCE_NAME}")
     logger.setLevel(logging.INFO)
     if not logger.handlers:
         handler = RotatingFileHandler(LOG_FILE, maxBytes=1_000_000, backupCount=3)
@@ -80,6 +102,12 @@ def load_config() -> dict:
     local_path = PROJECT_DIR / "config.local.toml"
     if local_path.exists() and "PTT_CONFIG" not in os.environ:
         with local_path.open("rb") as handle:
+            config = deep_merge(config, tomllib.load(handle))
+    if PROFILE_NAME:
+        profile_path = PROJECT_DIR / f"config.{PROFILE_NAME}.toml"
+        if not profile_path.is_file():
+            raise RuntimeError(f"PTT profile does not exist: {profile_path}")
+        with profile_path.open("rb") as handle:
             config = deep_merge(config, tomllib.load(handle))
     return config
 
@@ -147,6 +175,8 @@ def notify(config: dict, summary: str, body: str = "", urgency: str = "normal") 
     if not shutil.which(command):
         LOG.warning("Notification command is unavailable: %s", command)
         return
+    if INSTANCE_NAME != "default":
+        summary = f"{summary} [{INSTANCE_NAME}]"
     try:
         result = run_quiet(
             [command, "--app-name", APP_NAME, "--urgency", urgency, summary, body],
@@ -217,7 +247,7 @@ def read_worker_state() -> dict | None:
 
 
 def write_worker_state(state: dict) -> None:
-    temporary = RUNTIME_HOME / f"worker.{os.getpid()}.tmp"
+    temporary = RUNTIME_HOME / f"worker-{INSTANCE_NAME}.{os.getpid()}.tmp"
     temporary.write_text(json.dumps(state, indent=2) + "\n")
     os.chmod(temporary, 0o600)
     os.replace(temporary, WORKER_STATE_FILE)
@@ -373,7 +403,9 @@ def ensure_worker(config: dict, wait_until_ready: bool = False) -> bool:
     return True
 
 
-def worker_rpc(config: dict, request: dict, response_timeout: float | None = None) -> dict:
+def worker_rpc(
+    config: dict, request: dict, response_timeout: float | None = None
+) -> dict:
     settings = config.get("worker", {})
     connect_timeout = float(settings.get("startup_timeout_seconds", 20))
     deadline = time.monotonic() + connect_timeout
@@ -402,7 +434,9 @@ def worker_rpc(config: dict, request: dict, response_timeout: float | None = Non
         while not received.endswith(b"\n"):
             chunk = connection.recv(65536)
             if not chunk:
-                raise RuntimeError("Whisper worker closed the connection without a response")
+                raise RuntimeError(
+                    "Whisper worker closed the connection without a response"
+                )
             received.extend(chunk)
             if len(received) > 10_000_000:
                 raise RuntimeError("Whisper worker response exceeded 10 MB")
@@ -413,7 +447,9 @@ def worker_rpc(config: dict, request: dict, response_timeout: float | None = Non
         if connection is not None:
             connection.close()
     if not response.get("ok"):
-        raise RuntimeError(response.get("error", "Whisper worker reported an unknown error"))
+        raise RuntimeError(
+            response.get("error", "Whisper worker reported an unknown error")
+        )
     return response
 
 
@@ -484,7 +520,9 @@ def start_recording(config: dict) -> int:
         existing = read_state()
         if existing:
             owner_pid = int(existing.get("owner_pid", existing.get("recorder_pid", 0)))
-            owner_ticks = existing.get("owner_start_ticks", existing.get("recorder_start_ticks"))
+            owner_ticks = existing.get(
+                "owner_start_ticks", existing.get("recorder_start_ticks")
+            )
             if process_matches(owner_pid, owner_ticks):
                 LOG.info("Ignoring duplicate start; phase=%s", existing.get("phase"))
                 return 0
@@ -495,9 +533,12 @@ def start_recording(config: dict) -> int:
         audio_path = RUNTIME_HOME / f"recording-{session_id}.wav"
         command = [
             recorder,
-            "--rate", str(recording.get("sample_rate", 16000)),
-            "--channels", str(recording.get("channels", 1)),
-            "--format", str(recording.get("sample_format", "s16")),
+            "--rate",
+            str(recording.get("sample_rate", 16000)),
+            "--channels",
+            str(recording.get("channels", 1)),
+            "--format",
+            str(recording.get("sample_format", "s16")),
             str(audio_path),
         ]
         with bounded_component_log(STATE_HOME / "recorder.log") as recorder_log:
@@ -517,10 +558,13 @@ def start_recording(config: dict) -> int:
         time.sleep(0.08)
         if process.poll() is not None:
             audio_path.unlink(missing_ok=True)
-            raise RuntimeError(f"{recorder} exited immediately; see {STATE_HOME / 'recorder.log'}")
+            raise RuntimeError(
+                f"{recorder} exited immediately; see {STATE_HOME / 'recorder.log'}"
+            )
 
         state = {
             "session_id": session_id,
+            "instance": INSTANCE_NAME,
             "phase": "recording",
             "audio_path": str(audio_path),
             "recorder_pid": process.pid,
@@ -580,10 +624,14 @@ def wav_duration(path: Path) -> float:
         raise RuntimeError(f"Recorded WAV is invalid: {exc}") from exc
 
 
-def transcription_metrics(text: str, recording_seconds: float, result_seconds: float) -> dict:
+def transcription_metrics(
+    text: str, recording_seconds: float, result_seconds: float
+) -> dict:
     """Return user-facing dictation metrics without launching extra processes."""
     words = len(re.findall(r"\b\w+(?:['’]\w+)*\b", text, flags=re.UNICODE))
-    words_per_minute = round(words * 60 / recording_seconds) if recording_seconds > 0 else 0
+    words_per_minute = (
+        round(words * 60 / recording_seconds) if recording_seconds > 0 else 0
+    )
     return {
         "recording_seconds": recording_seconds,
         "result_seconds": result_seconds,
@@ -604,11 +652,15 @@ def load_whisper_model(config: dict):
     from faster_whisper import WhisperModel
 
     settings = config["whisper"]
-    cache_root = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / APP_NAME
+    cache_root = (
+        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / APP_NAME
+    )
     cache_root.mkdir(mode=0o700, parents=True, exist_ok=True)
     LOG.info(
         "Loading model=%s device=%s compute_type=%s",
-        settings["model"], settings["device"], settings["compute_type"],
+        settings["model"],
+        settings["device"],
+        settings["compute_type"],
     )
     return WhisperModel(
         settings["model"],
@@ -673,7 +725,9 @@ def run_worker(config: dict) -> int:
                 state["ready_at"] = time.time()
                 state["model_load_seconds"] = load_seconds
                 write_worker_state(state)
-        LOG.info("Whisper worker ready: pid=%s load_seconds=%.2f", os.getpid(), load_seconds)
+        LOG.info(
+            "Whisper worker ready: pid=%s load_seconds=%.2f", os.getpid(), load_seconds
+        )
 
         while running[0]:
             try:
@@ -698,11 +752,19 @@ def run_worker(config: dict) -> int:
                         response = {"ok": True}
                         running[0] = False
                     elif command == "transcribe":
-                        audio_path = Path(str(request.get("audio_path", ""))).expanduser().resolve()
+                        audio_path = (
+                            Path(str(request.get("audio_path", "")))
+                            .expanduser()
+                            .resolve()
+                        )
                         if not audio_path.is_file():
-                            raise RuntimeError(f"Audio file does not exist: {audio_path}")
+                            raise RuntimeError(
+                                f"Audio file does not exist: {audio_path}"
+                            )
                         started = time.monotonic()
-                        text, metadata = transcribe_with_model(model, config, audio_path)
+                        text, metadata = transcribe_with_model(
+                            model, config, audio_path
+                        )
                         elapsed = time.monotonic() - started
                         LOG.info(
                             "Whisper worker transcription: seconds=%.2f chars=%s path=%s",
@@ -724,7 +786,9 @@ def run_worker(config: dict) -> int:
                 try:
                     connection.sendall(json.dumps(response).encode("utf-8") + b"\n")
                 except (BrokenPipeError, ConnectionResetError):
-                    LOG.warning("Whisper worker client disconnected before receiving its response")
+                    LOG.warning(
+                        "Whisper worker client disconnected before receiving its response"
+                    )
         return 0
     finally:
         server.close()
@@ -752,7 +816,9 @@ def transcribe_audio(config: dict, audio_path: Path) -> tuple[str, dict]:
         except Exception as exc:
             if not settings.get("fallback_to_direct", True):
                 raise
-            LOG.warning("Resident Whisper worker failed; using direct fallback: %s", exc)
+            LOG.warning(
+                "Resident Whisper worker failed; using direct fallback: %s", exc
+            )
     return transcribe_audio_direct(config, audio_path)
 
 
@@ -804,7 +870,9 @@ def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
                 # Avoid `--sync`: some X11 applications accept activation but
                 # never satisfy xdotool's synchronous focus wait. Verify focus
                 # ourselves with a short, bounded poll instead.
-                focused = run_quiet([xdotool, "windowactivate", target_window], timeout=2)
+                focused = run_quiet(
+                    [xdotool, "windowactivate", target_window], timeout=2
+                )
             except (OSError, subprocess.TimeoutExpired) as exc:
                 LOG.warning(
                     "Automatic paste skipped; could not request focus for window %s: %s",
@@ -820,10 +888,14 @@ def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
                 )
                 return False
 
-            deadline = time.monotonic() + max(
-                0,
-                int(paste.get("focus_timeout_ms", 1000)),
-            ) / 1000
+            deadline = (
+                time.monotonic()
+                + max(
+                    0,
+                    int(paste.get("focus_timeout_ms", 1000)),
+                )
+                / 1000
+            )
             while time.monotonic() < deadline:
                 if active_window_id(config) == target_window:
                     break
@@ -838,11 +910,18 @@ def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
 
     try:
         result = run_quiet(
-            [xdotool, "key", "--clearmodifiers", str(paste.get("hotkey", "ctrl+shift+v"))],
+            [
+                xdotool,
+                "key",
+                "--clearmodifiers",
+                str(paste.get("hotkey", "ctrl+shift+v")),
+            ],
             timeout=2,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        LOG.warning("Automatic paste failed; transcription remains on clipboard: %s", exc)
+        LOG.warning(
+            "Automatic paste failed; transcription remains on clipboard: %s", exc
+        )
         return False
     if result.returncode:
         LOG.warning(
@@ -850,7 +929,9 @@ def copy_and_paste(config: dict, text: str, target_window: str | None) -> bool:
             result.stderr.strip(),
         )
         return False
-    LOG.info("Paste sent to X11 window=%s chars=%s", target_window or "current", len(text))
+    LOG.info(
+        "Paste sent to X11 window=%s chars=%s", target_window or "current", len(text)
+    )
     return True
 
 
@@ -863,6 +944,14 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
         if not state:
             LOG.info("Ignoring stop; no recording is active")
             return 0
+        recording_instance = state.get("instance", "default")
+        if recording_instance != INSTANCE_NAME:
+            LOG.info(
+                "Ignoring stop from instance=%s; recording belongs to instance=%s",
+                INSTANCE_NAME,
+                recording_instance,
+            )
+            return 0
         if state.get("phase") != "recording":
             LOG.info("Ignoring duplicate stop; phase=%s", state.get("phase"))
             return 0
@@ -873,7 +962,9 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
 
     audio_path = safe_audio_path(state["audio_path"])
     try:
-        terminate_recorder(state, float(config["recording"].get("stop_timeout_seconds", 5)))
+        terminate_recorder(
+            state, float(config["recording"].get("stop_timeout_seconds", 5))
+        )
         duration = wav_duration(audio_path)
         minimum = float(config["recording"].get("minimum_seconds", 0.25))
         if duration < minimum:
@@ -886,7 +977,11 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
             return 0
 
         LOG.info("Recording stopped: %.2fs; transcribing %s", duration, audio_path)
-        notify(config, "Dictation: transcribing", f"Processing {duration:.1f} seconds locally")
+        notify(
+            config,
+            "Dictation: transcribing",
+            f"Processing {duration:.1f} seconds locally",
+        )
         text, metadata = transcribe_audio(config, audio_path)
         if not text:
             raise RuntimeError("Whisper returned an empty transcription")
@@ -896,10 +991,14 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
             pasted = False
         else:
             pasted = copy_and_paste(config, text, state.get("target_window"))
-        metrics = transcription_metrics(text, duration, time.monotonic() - release_started)
+        metrics = transcription_metrics(
+            text, duration, time.monotonic() - release_started
+        )
         LOG.info(
-            "Dictation metrics: recording_seconds=%.2f release_to_result_seconds=%.2f "
-            "words=%s words_per_minute=%s pasted=%s",
+            "Dictation metrics: instance=%s model=%s recording_seconds=%.2f "
+            "release_to_result_seconds=%.2f words=%s words_per_minute=%s pasted=%s",
+            INSTANCE_NAME,
+            config["whisper"]["model"],
             metrics["recording_seconds"],
             metrics["result_seconds"],
             metrics["words"],
@@ -907,9 +1006,15 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
             pasted,
         )
         if no_paste:
-            notify(config, "Dictation complete", format_completion_metrics(metrics, "Ready"))
+            notify(
+                config,
+                "Dictation complete",
+                format_completion_metrics(metrics, "Ready"),
+            )
         elif pasted:
-            notify(config, "Dictation pasted", format_completion_metrics(metrics, "Pasted"))
+            notify(
+                config, "Dictation pasted", format_completion_metrics(metrics, "Pasted")
+            )
         else:
             notify(
                 config,
@@ -941,7 +1046,9 @@ def cancel_session(config: dict) -> int:
         write_state(state)
 
     try:
-        terminate_recorder(state, float(config["recording"].get("stop_timeout_seconds", 5)))
+        terminate_recorder(
+            state, float(config["recording"].get("stop_timeout_seconds", 5))
+        )
         LOG.info("Recording canceled: session=%s", state.get("session_id"))
         notify(config, "Dictation canceled", "Recording discarded")
         print("canceled")
@@ -960,13 +1067,18 @@ def record_test(config: dict, seconds: float, keep: Path | None) -> int:
         raise RuntimeError(f"Recorder not found: {recorder}")
     with ControlLock():
         if read_state():
-            raise RuntimeError("Cannot run a microphone test while a dictation session exists")
+            raise RuntimeError(
+                "Cannot run a microphone test while a dictation session exists"
+            )
     test_path = RUNTIME_HOME / f"microphone-test-{uuid.uuid4().hex}.wav"
     command = [
         recorder,
-        "--rate", str(recording.get("sample_rate", 16000)),
-        "--channels", str(recording.get("channels", 1)),
-        "--format", str(recording.get("sample_format", "s16")),
+        "--rate",
+        str(recording.get("sample_rate", 16000)),
+        "--channels",
+        str(recording.get("channels", 1)),
+        "--format",
+        str(recording.get("sample_format", "s16")),
         str(test_path),
     ]
     process = subprocess.Popen(
@@ -979,7 +1091,9 @@ def record_test(config: dict, seconds: float, keep: Path | None) -> int:
     try:
         time.sleep(seconds)
         if process.poll() is not None:
-            error = process.stderr.read().decode(errors="replace") if process.stderr else ""
+            error = (
+                process.stderr.read().decode(errors="replace") if process.stderr else ""
+            )
             raise RuntimeError(f"Recorder exited during test: {error.strip()}")
         os.killpg(process.pid, signal.SIGINT)
         try:
@@ -1013,7 +1127,9 @@ def status() -> int:
             return 1
         owner_pid = int(state.get("owner_pid", 0))
         if process_matches(owner_pid, state.get("owner_start_ticks")):
-            print(f"{state.get('phase', 'unknown')} (session {state.get('session_id')}, pid {owner_pid})")
+            print(
+                f"{state.get('phase', 'unknown')} (session {state.get('session_id')}, pid {owner_pid})"
+            )
             return 0
         print("stale")
         return 2
@@ -1035,18 +1151,26 @@ def doctor(config: dict) -> int:
         failed |= path is None
     print(f"DISPLAY: {os.environ.get('DISPLAY') or 'UNSET'}")
     print(f"config: {os.environ.get('PTT_CONFIG', DEFAULT_CONFIG)}")
+    print(f"profile: {PROFILE_NAME or 'default'}")
+    print(f"instance: {INSTANCE_NAME}")
+    print(f"model: {config['whisper']['model']}")
     print(f"runtime: {RUNTIME_HOME}")
     print(f"log: {LOG_FILE}")
     print(f"worker log: {WORKER_LOG_FILE}")
     worker = read_worker_state()
-    worker_phase = worker.get("phase", "unknown") if worker_is_alive(worker) else "stopped"
+    worker_phase = (
+        worker.get("phase", "unknown") if worker_is_alive(worker) else "stopped"
+    )
     print(f"worker: {worker_phase}")
     try:
         import faster_whisper
         import ctranslate2
+
         print(f"faster-whisper: {faster_whisper.__version__}")
         print(f"CTranslate2: {ctranslate2.__version__}")
-        print(f"CTranslate2 CPU compute types: {sorted(ctranslate2.get_supported_compute_types('cpu'))}")
+        print(
+            f"CTranslate2 CPU compute types: {sorted(ctranslate2.get_supported_compute_types('cpu'))}"
+        )
     except ImportError as exc:
         print(f"Python dependency missing: {exc}")
         failed = True
@@ -1083,24 +1207,40 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
     subparsers.add_parser("start", help="start recording; duplicate starts are ignored")
     stop_parser = subparsers.add_parser("stop", help="stop, transcribe, and paste")
-    stop_parser.add_argument("--no-paste", action="store_true", help="print transcription instead")
+    stop_parser.add_argument(
+        "--no-paste", action="store_true", help="print transcription instead"
+    )
     subparsers.add_parser("cancel", help="stop and discard an active recording")
-    toggle_parser = subparsers.add_parser("toggle", help="toggle recording for non-hold bindings")
+    toggle_parser = subparsers.add_parser(
+        "toggle", help="toggle recording for non-hold bindings"
+    )
     toggle_parser.add_argument("--no-paste", action="store_true")
     subparsers.add_parser("status", help="show the current controller phase")
-    subparsers.add_parser("doctor", help="check commands, display, and Python dependencies")
-    subparsers.add_parser("worker-start", help="start and warm the resident Whisper worker")
+    subparsers.add_parser(
+        "doctor", help="check commands, display, and Python dependencies"
+    )
+    subparsers.add_parser(
+        "worker-start", help="start and warm the resident Whisper worker"
+    )
     subparsers.add_parser("worker-status", help="show resident Whisper worker status")
     subparsers.add_parser("worker-stop", help="stop the resident Whisper worker")
-    transcribe_parser = subparsers.add_parser("transcribe-file", help="transcribe an existing audio file")
+    transcribe_parser = subparsers.add_parser(
+        "transcribe-file", help="transcribe an existing audio file"
+    )
     transcribe_parser.add_argument("path", type=Path)
     transcribe_parser.add_argument("--paste", action="store_true")
-    paste_parser = subparsers.add_parser("paste-test", help="test clipboard and optional X11 paste")
+    paste_parser = subparsers.add_parser(
+        "paste-test", help="test clipboard and optional X11 paste"
+    )
     paste_parser.add_argument("text", nargs="?", default="Push-to-talk clipboard test")
     paste_parser.add_argument("--clipboard-only", action="store_true")
-    record_parser = subparsers.add_parser("record-test", help="test the default microphone without Whisper")
+    record_parser = subparsers.add_parser(
+        "record-test", help="test the default microphone without Whisper"
+    )
     record_parser.add_argument("--seconds", type=float, default=2.0)
-    record_parser.add_argument("--keep", type=Path, help="keep the test WAV at this path")
+    record_parser.add_argument(
+        "--keep", type=Path, help="keep the test WAV at this path"
+    )
     return parser
 
 
@@ -1116,7 +1256,11 @@ def main() -> int:
     if args.command == "cancel":
         return cancel_session(config)
     if args.command == "toggle":
-        return finish_session(config, args.no_paste) if read_state() else start_recording(config)
+        return (
+            finish_session(config, args.no_paste)
+            if read_state()
+            else start_recording(config)
+        )
     if args.command == "status":
         return status()
     if args.command == "doctor":

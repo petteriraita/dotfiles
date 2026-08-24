@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+launcher_path="$(readlink -f -- "${BASH_SOURCE[0]}")"
+project_dir="$(cd -- "$(dirname -- "$launcher_path")/.." && pwd)"
+python_bin="$project_dir/.venv/bin/python"
+
+if [[ ! -x "$python_bin" ]]; then
+  printf 'ptt-dictation-moonshine: Python environment is missing. Run: cd %q && uv sync\n' "$project_dir" >&2
+  exit 1
+fi
+
+export PTT_INSTANCE=moonshine
+export PTT_PROFILE=moonshine
+exec "$python_bin" "$project_dir/moonshine_dictation.py" "$@"
+
