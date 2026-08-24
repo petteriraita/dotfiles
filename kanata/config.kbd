@@ -32,23 +32,31 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      p
    caps   a      s      d      f      g           h      j      k      l      ;
           z      x      c      v      b           n      m      ,      .      /
-                      lalt          spc           ralt          pgdn
+                      lalt          spc           ralt          pgup   pgdn
 )
 
 (deffakekeys
   ptt-start f13
   ptt-stop  f14
+  ptt-small-start f15
+  ptt-small-stop  f16
 )
 
 
 
 
 (defalias
-  ;; Physical Page Down: tap F13 on press and F14 on release. i3 runs
-  ;; the user-session recorder commands for the two distinct virtual keys.
+  ;; Physical Page Down: tap F13 on press and F14 on release. i3 runs the
+  ;; user-session Moonshine streaming commands for the two virtual keys.
   ptt (multi
         (on-press-fakekey ptt-start tap)
         (on-release-fakekey ptt-stop tap)
+      )
+
+  ;; Physical Page Up is an isolated faster-whisper small.en experiment.
+  ptt-small (multi
+        (on-press-fakekey ptt-small-start tap)
+        (on-release-fakekey ptt-small-stop tap)
       )
 
   ;; Main mod-tap: Nav layer when held, Space when tapped.
@@ -170,7 +178,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
-                       @lalt          @nav            @ralt          @ptt
+                       @lalt          @nav            @ralt          @ptt-small @ptt
 )
 
 ;; Plain layer for games that should not see tap-hold or home-row mods.
@@ -179,7 +187,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      p
    @caps  a      s      d      f      g           h      j      k      l      @semi
           z      x      c      v      b           n      m      ,      .      /
-                       lalt          spc          ralt          @ptt
+                       lalt          spc          ralt          @ptt-small @ptt
 )
 
 ;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
@@ -188,7 +196,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           XX     XX     XX     XX     XX          home   pgdn   pgup   end    _
    _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
-                       _            _             _             @ptt
+                       _            _             _             @ptt-small @ptt
 )
 ;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer numpad
@@ -196,7 +204,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           XX   XX   XX   XX   XX        XX    1    2    3   XX
    XX     XX   XX   XX   XX   XX        del   4    5    6   0
           XX   XX   XX   XX   XX        XX    7    8    9   XX
-               XX          XX           XX          @ptt
+               XX          XX           XX          @ptt-small @ptt
 )
 
 
@@ -206,5 +214,5 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
          @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
     _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
          @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
-                _            spc             _             @ptt
+                _            spc             _             @ptt-small @ptt
 )

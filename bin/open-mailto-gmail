@@ -1,0 +1,49 @@
+#!/usr/bin/env python3
+"""Open a mailto URI in Gmail compose using Brave."""
+
+from __future__ import annotations
+
+import os
+from pathlib import Path
+import sys
+from urllib.parse import quote, urlsplit
+
+
+BRAVE = Path("/usr/bin/brave-browser-stable")
+GMAIL_HANDLER = "https://mail.google.com/mail/?extsrc=mailto&url="
+
+
+def gmail_compose_url(mailto_uri: str) -> str:
+    if urlsplit(mailto_uri).scheme.lower() != "mailto":
+        raise ValueError("expected a mailto: URI")
+    return GMAIL_HANDLER + quote(mailto_uri, safe="")
+
+
+def main() -> int:
+    arguments = sys.argv[1:]
+    print_only = bool(arguments and arguments[0] == "--print")
+    if print_only:
+        arguments = arguments[1:]
+    if len(arguments) != 1:
+        print(f"usage: {Path(sys.argv[0]).name} [--print] MAILTO_URI", file=sys.stderr)
+        return 2
+
+    try:
+        destination = gmail_compose_url(arguments[0])
+    except ValueError as exc:
+        print(f"open-mailto-gmail: {exc}", file=sys.stderr)
+        return 2
+
+    if print_only:
+        print(destination)
+        return 0
+    if not BRAVE.is_file():
+        print(f"open-mailto-gmail: Brave is unavailable at {BRAVE}", file=sys.stderr)
+        return 1
+
+    os.execv(str(BRAVE), [BRAVE.name, destination])
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

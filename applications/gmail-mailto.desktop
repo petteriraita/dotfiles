@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Gmail in Brave
+Comment=Compose mail in Gmail using Brave
+Exec=/home/pt/dev/dotfiles/bin/open-mailto-gmail %u
+TryExec=/home/pt/dev/dotfiles/bin/open-mailto-gmail
+Terminal=false
+NoDisplay=true
+MimeType=x-scheme-handler/mailto;
+Categories=Network;Email;
