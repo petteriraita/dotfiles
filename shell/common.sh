@@ -113,20 +113,34 @@ v() {
     esac
 }
 x() {
-    case $# in
-    # 0) echo "got the input of 0 args" ;;
-    # 1) echo "got the input of 1 args" ;;
-    0)
-        xdg-open "$PWD" >/dev/null 2>&1 &
+    local target mime handler
+    local -a editor_files=()
+
+    if [ "$#" -eq 0 ]; then
+        set -- "$PWD"
+    fi
+
+    for target in "$@"; do
+        # Use an absolute path so filenames beginning with '-' stay filenames.
+        if [ -f "$target" ]; then
+            case "$target" in
+                /*) ;;
+                *) target="$PWD/$target" ;;
+            esac
+            mime=$(xdg-mime query filetype "$target" 2>/dev/null)
+            handler=$(xdg-mime query default "$mime" 2>/dev/null)
+            if [ "$handler" = "nvim.desktop" ]; then
+                editor_files+=("$target")
+                continue
+            fi
+        fi
+        xdg-open "$target" >/dev/null 2>&1 &
         disown
-        ;;
-    *)
-        # so if there are multiple arguments, all of them are passed to the xdg-open like normally.
-        xdg-open "$@" >/dev/null 2>&1 &
-        disown
-        ;;
-    # *) echo "wrong number >= 2 arguments provided to function x" ;;
-    esac
+    done
+
+    if [ "${#editor_files[@]}" -gt 0 ]; then
+        nvim -- "${editor_files[@]}"
+    fi
 }
 
 # activate the py310 conda environment (c a p  )
@@ -147,17 +161,19 @@ clip() {
 }
 
 g() {
-    # check if the argument length is 0, then just move to where we are
-    if [ -z "$1" ]; then
-        abs="$(pwd)"
-    else
-        abs="$(realpath "$1")" || return 1
+    local target
+
+    if [ "$#" -gt 1 ]; then
+        printf 'g: expected at most one path\n' >&2
+        return 2
     fi
 
-    if [ -f "$abs" ]; then
-        cd "$(dirname "$abs")"
+    target=${1:-"$PWD"}
+
+    if [ -f "$target" ] || { [ -L "$target" ] && [ ! -d "$target" ]; }; then
+        cd -- "$(dirname -- "$target")"
     else
-        cd "$abs"
+        cd -- "$target"
     fi
 }
 
@@ -172,9 +188,57 @@ p() {
     echo "copied $abs"
 }
 
-### making a shortcut function to say that codexa is sandbox and should work with resume etc
+_codexa() {
+    local use_home=$1
+    local use_search=$2
+    local subcommand
+    local -a options
+    shift 2
+
+    options=(--dangerously-bypass-approvals-and-sandbox)
+    if [ "$use_home" = true ]; then
+        options+=(-C /home/pt)
+    fi
+    if [ "$use_search" = true ]; then
+        options+=(--search)
+    fi
+
+    if [ "$#" -eq 0 ]; then
+        command codex "${options[@]}"
+        return
+    fi
+
+    case $1 in
+    resume | fork)
+        subcommand=$1
+        shift
+        ;;
+    *)
+        subcommand=resume
+        ;;
+    esac
+
+    command codex "$subcommand" "${options[@]}" "$@"
+}
+
+# Full home-directory access; optionally resume the supplied session ID.
 codexa() {
-    codex --ask-for-approval never --sandbox workspace-write "$@"
+    _codexa true false "$@"
+}
+
+# Full home-directory access with web search.
+codexas() {
+    _codexa true true "$@"
+}
+
+# Full access rooted in the current directory.
+codexal() {
+    _codexa false false "$@"
+}
+
+# Full access rooted in the current directory, with web search.
+codexasl() {
+    _codexa false true "$@"
 }
 
 # MY OWN SETTINGS

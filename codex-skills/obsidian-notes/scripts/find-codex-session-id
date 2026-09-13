@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+if [ "$#" -ne 1 ] || [ -z "$1" ]; then
+    echo "usage: $0 'distinctive exact phrase from the current user message'" >&2
+    exit 2
+fi
+
+matches=$(rg -l -F -- "$1" /home/pt/.codex/sessions 2>/dev/null || true)
+if [ -z "$matches" ]; then
+    echo "no matching Codex session" >&2
+    exit 1
+fi
+
+latest=$(printf '%s\n' "$matches" | xargs -r ls -1t | head -n 1)
+sed -n '1p' "$latest" | jq -er '.payload.session_id // .payload.id'

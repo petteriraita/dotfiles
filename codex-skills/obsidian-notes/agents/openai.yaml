@@ -1,0 +1,4 @@
+interface:
+  display_name: "Obsidian Notes"
+  short_description: "Write compact notes in your Obsidian style"
+  default_prompt: "Use $obsidian-notes to create or update a concise note in my vault."

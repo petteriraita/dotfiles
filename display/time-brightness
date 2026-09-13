@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-DAY_START="${DAY_START:-07:30}"
-NIGHT_START="${NIGHT_START:-23:30}"
+DAY_START="${DAY_START:-05:30}"
+EVENING_START="${EVENING_START:-20:00}"
+NIGHT_START="${NIGHT_START:-22:00}"
 
-LAPTOP_DAY="${LAPTOP_DAY:-100%}"
+LAPTOP_DAY="${LAPTOP_DAY:-80%}"
+LAPTOP_EVENING="${LAPTOP_EVENING:-30%}"
 LAPTOP_NIGHT="${LAPTOP_NIGHT:-5%}"
 
 EXTERNAL_DAY="${EXTERNAL_DAY:-100}"
+EXTERNAL_EVENING="${EXTERNAL_EVENING:-50}"
 EXTERNAL_NIGHT="${EXTERNAL_NIGHT:-20}"
 
 INTERNAL_OUTPUT="${INTERNAL_OUTPUT:-eDP-1}"
@@ -15,6 +18,14 @@ DRM_STATUS_GLOB="${DRM_STATUS_GLOB:-/sys/class/drm/card*-*/status}"
 
 BRIGHTNESSCTL_BIN="${BRIGHTNESSCTL_BIN:-brightnessctl}"
 DDCUTIL_BIN="${DDCUTIL_BIN:-ddcutil}"
+
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/time-brightness"
+STATE_FILE="${TIME_BRIGHTNESS_STATE_FILE:-$STATE_DIR/state}"
+BOOT_ID_FILE="${BOOT_ID_FILE:-/proc/sys/kernel/random/boot_id}"
+
+LAST_BOOT_ID=""
+LAST_PROFILE=""
+LAST_LAPTOP_APPLIED=""
 
 log() {
     printf 'TIME BRIGHTNESS: %s\n' "$1"
@@ -25,16 +36,20 @@ choose_profile() {
     local now_hm=""
 
     case "$requested" in
-    day | night)
+    day | evening | night)
         printf '%s\n' "$requested"
         return 0
         ;;
     auto)
         now_hm="$(date +%H:%M)"
-        if [[ "$now_hm" < "$DAY_START" || ! "$now_hm" < "$NIGHT_START" ]]; then
+        if [[ "$now_hm" < "$DAY_START" ]]; then
             printf 'night\n'
-        else
+        elif [[ "$now_hm" < "$EVENING_START" ]]; then
             printf 'day\n'
+        elif [[ "$now_hm" < "$NIGHT_START" ]]; then
+            printf 'evening\n'
+        else
+            printf 'night\n'
         fi
         ;;
     *)
@@ -42,6 +57,43 @@ choose_profile() {
         exit 1
         ;;
     esac
+}
+
+load_state() {
+    local key=""
+    local value=""
+
+    [[ -r "$STATE_FILE" ]] || return 0
+
+    while IFS='=' read -r key value; do
+        case "$key" in
+        boot_id) LAST_BOOT_ID="$value" ;;
+        profile) LAST_PROFILE="$value" ;;
+        laptop_applied) LAST_LAPTOP_APPLIED="$value" ;;
+        esac
+    done <"$STATE_FILE"
+}
+
+save_state() {
+    local profile="$1"
+    local laptop_applied="$2"
+    local boot_id=""
+
+    [[ -r "$BOOT_ID_FILE" ]] && read -r boot_id <"$BOOT_ID_FILE"
+    mkdir -p "$(dirname "$STATE_FILE")"
+    printf 'boot_id=%s\nprofile=%s\nlaptop_applied=%s\n' \
+        "$boot_id" "$profile" "$laptop_applied" >"$STATE_FILE"
+}
+
+get_laptop_brightness() {
+    local details=""
+    local percent=""
+
+    command -v "$BRIGHTNESSCTL_BIN" >/dev/null 2>&1 || return 1
+    details="$($BRIGHTNESSCTL_BIN -m 2>/dev/null)" || return 1
+    percent="$(awk -F, 'NR == 1 {gsub(/%/, "", $4); print $4}' <<<"$details")"
+    [[ "$percent" =~ ^[0-9]+$ ]] || return 1
+    printf '%s\n' "$percent"
 }
 
 list_external_connectors() {
@@ -65,13 +117,14 @@ set_laptop_brightness() {
 
     if ! command -v "$BRIGHTNESSCTL_BIN" >/dev/null 2>&1; then
         log "brightnessctl not found; skipping laptop brightness"
-        return 0
+        return 1
     fi
 
     if "$BRIGHTNESSCTL_BIN" set "$target" >/dev/null 2>&1; then
         log "laptop brightness set to $target"
     else
         log "failed to set laptop brightness to $target"
+        return 1
     fi
 }
 
@@ -136,13 +189,22 @@ main() {
     local profile=""
     local laptop_target=""
     local external_target=""
+    local requested="${1:-auto}"
+    local current_laptop=""
+    local target_laptop_number=""
+    local current_boot_id=""
+    local laptop_was_set=0
 
-    profile="$(choose_profile "${1:-auto}")"
+    profile="$(choose_profile "$requested")"
 
     case "$profile" in
     day)
         laptop_target="$LAPTOP_DAY"
         external_target="$EXTERNAL_DAY"
+        ;;
+    evening)
+        laptop_target="$LAPTOP_EVENING"
+        external_target="$EXTERNAL_EVENING"
         ;;
     night)
         laptop_target="$LAPTOP_NIGHT"
@@ -151,9 +213,25 @@ main() {
     esac
 
     log "selected profile = $profile"
-    set_laptop_brightness "$laptop_target"
-    echo "setting $external_target"
+    load_state
+    [[ -r "$BOOT_ID_FILE" ]] && read -r current_boot_id <"$BOOT_ID_FILE"
+    current_laptop="$(get_laptop_brightness || true)"
+    target_laptop_number="${laptop_target%%%}"
+
+    if [[ "$requested" == auto && -n "$current_laptop" && \
+        "$LAST_BOOT_ID" == "$current_boot_id" && "$LAST_PROFILE" == "$profile" && \
+        -n "$LAST_LAPTOP_APPLIED" && "$current_laptop" != "$LAST_LAPTOP_APPLIED" ]]; then
+        log "manual laptop brightness $current_laptop% detected; preserving it until the next profile"
+    elif set_laptop_brightness "$laptop_target"; then
+        current_laptop="$(get_laptop_brightness || printf '%s\n' "$target_laptop_number")"
+        laptop_was_set=1
+    fi
+
     set_external_brightness "$external_target"
+
+    if ((laptop_was_set)); then
+        save_state "$profile" "$current_laptop"
+    fi
 }
 
 main "${1:-auto}"

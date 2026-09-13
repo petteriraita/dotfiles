@@ -80,6 +80,21 @@ ls.add_snippets('tex', {
     }
   ),
 })
+ls.add_snippets('tex', {
+  s(
+    { trig = 'rm', wordTrig = true, snippetType = 'autosnippet' },
+
+    -- using a long string with [[ here]] this makes so that you dont need to escape backslashes
+    fmta([[\mathrm{<>}<>]], {
+      i(1),
+      i(0),
+    }),
+
+    {
+      condition = math,
+    }
+  ),
+})
 
 ls.add_snippets('tex', {
   s(
@@ -93,6 +108,27 @@ ls.add_snippets('tex', {
 
     {
       condition = math,
+    }
+  ),
+})
+
+ls.add_snippets('tex', {
+  s(
+    { trig = 'pm', wordTrig = true, snippetType = 'autosnippet' },
+    fmta(
+      [[
+\begin{pmatrix}
+  {<>} \\
+  {<>}
+\end{pmatrix}
+<>
+]],
+      { i(1), i(2), i(0) }
+    ),
+    {
+      condition = function(line)
+        return math() and not line:match '\\pm$'
+      end,
     }
   ),
 })
@@ -251,7 +287,8 @@ ls.add_snippets('tex', {
   s({ trig = ';c', snippetType = 'autosnippet' }, { t '\\chi' }),
   s({ trig = ';ps', snippetType = 'autosnippet' }, { t '\\psi' }),
   s({ trig = ';w', snippetType = 'autosnippet' }, { t '\\omega' }),
-
+  -- vector calculus
+  s({ trig = ';v', snippetType = 'autosnippet' }, { t '\\nabla' }),
   -- uppercase
   s({ trig = ';A', snippetType = 'autosnippet' }, { t '\\Alpha' }),
   s({ trig = ';B', snippetType = 'autosnippet' }, { t '\\Beta' }),

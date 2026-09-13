@@ -181,6 +181,15 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
                        @lalt          @nav            @ralt          @ptt-small @ptt
 )
 
+;; Keep the base layout in Sioyek, but make j a plain repeatable key for scrolling.
+(deflayer sioyek
+          1      2      3      4      5           6      7      8      9      0
+          q      w      e      r      t           y      u      i      o      @p
+   @caps  @a     @s     @d     @f     g           h      j      @k     @l     @semi
+          @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
+                       @lalt          @nav            @ralt          @ptt-small @ptt
+)
+
 ;; Plain layer for games that should not see tap-hold or home-row mods.
 (deflayer skyrim
           1      2      3      4      5           6      7      8      9      0

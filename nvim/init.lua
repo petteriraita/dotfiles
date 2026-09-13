@@ -186,7 +186,24 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 vim.keymap.set('n', '<C-_>', 'gcc', { remap = true })
 vim.keymap.set('v', '<C-_>', 'gc', { remap = true })
 -- set an insert mode remap also
-vim.keymap.set('i', '<C-_>', '<C-\\><C-o>gcc<C-o>A', { remap = true })
+vim.keymap.set('i', '<C-_>', function()
+  local was_blank = vim.api.nvim_get_current_line():match('^%s*$') ~= nil
+
+  vim.cmd('normal gcc')
+
+  -- Comment.nvim intentionally omits padding for an empty line. Add it here
+  -- so typing immediately after the shortcut starts with `# ` in Python.
+  if was_blank and vim.bo.filetype == 'python' then
+    local line = vim.api.nvim_get_current_line()
+    if line:match('^%s*#$') then
+      vim.api.nvim_set_current_line(line .. ' ')
+    end
+  end
+
+  -- `:normal gcc` leaves Insert mode.  Return to the end of the comment so
+  -- typing continues immediately after `# ` (or the relevant comment marker).
+  vim.cmd('startinsert!')
+end, { desc = 'Comment from insert mode' })
 
 -- Exit terminal mode in the builtin terminal with a shortcut that is a bit easier
 -- for people to discover. Otherwise, you normally need to press <C-\><C-n>, which
@@ -204,7 +221,27 @@ end, { desc = 'copy file path' })
 
 -- add keymap to open e.g. pdfs from inside the file
 vim.keymap.set('n', '<localleader>xx', function()
-  vim.fn.jobstart({ 'xdg-open', vim.fn.expand '%:p' }, { detach = true })
+  local path
+
+  if vim.bo.filetype == 'oil' then
+    local oil = require 'oil'
+    local entry = oil.get_cursor_entry()
+    local dir = oil.get_current_dir()
+
+    if not entry or not dir then
+      vim.notify('No Oil entry under the cursor', vim.log.levels.WARN)
+      return
+    end
+
+    path = vim.fs.joinpath(dir, entry.name)
+  else
+    path = vim.fn.expand '%:p'
+  end
+
+  local job = vim.fn.jobstart({ 'xdg-open', path }, { detach = true })
+  if job <= 0 then
+    vim.notify('Could not open ' .. path, vim.log.levels.ERROR)
+  end
 end, { desc = 'Open current file externally' })
 
 -- Petteri add molten
@@ -249,7 +286,21 @@ vim.keymap.set('n', '<Leader>b', function()
   require('dap').toggle_breakpoint()
 end)
 vim.keymap.set({ 'n', 'v' }, '<Leader>dh', function()
-  require('dap.ui.widgets').hover()
+  local view = require('dap.ui.widgets').hover()
+  local function close_hover()
+    if view.win and vim.api.nvim_win_is_valid(view.win) then
+      view.close()
+    end
+  end
+  vim.keymap.set('n', '<Esc>', close_hover, { buffer = view.buf, desc = 'Close debug hover' })
+  vim.keymap.set('n', 'q', close_hover, { buffer = view.buf, desc = 'Close debug hover' })
+  vim.api.nvim_create_autocmd('WinLeave', {
+    buffer = view.buf,
+    once = true,
+    callback = function()
+      vim.schedule(close_hover)
+    end,
+  })
 end)
 vim.keymap.set('n', '<Leader>dr', function()
   require('dap').repl.open()
@@ -276,6 +327,24 @@ vim.api.nvim_create_autocmd('TextYankPost', {
   end,
 })
 
+-- Return to the last cursor position when reopening a file.
+vim.api.nvim_create_autocmd('BufReadPost', {
+  desc = 'Restore the last cursor position',
+  group = vim.api.nvim_create_augroup('kickstart-restore-cursor', { clear = true }),
+  callback = function(event)
+    if vim.bo[event.buf].buftype ~= '' then
+      return
+    end
+
+    local last_position = vim.api.nvim_buf_get_mark(event.buf, '"')
+    local last_line = last_position[1]
+
+    if last_line > 0 and last_line <= vim.api.nvim_buf_line_count(event.buf) then
+      pcall(vim.api.nvim_win_set_cursor, 0, last_position)
+    end
+  end,
+})
+
 -- [[ Install `lazy.nvim` plugin manager ]]
 --    See `:help lazy.nvim.txt` or https://github.com/folke/lazy.nvim for more info
 local lazypath = vim.fn.stdpath 'data' .. '/lazy/lazy.nvim'
@@ -296,7 +365,23 @@ vim.filetype.add {
   extension = {
     zsh = 'sh',
   },
+  filename = {
+    ['codex-session.md'] = 'tex',
+  },
 }
+
+-- Codex opens Ctrl-G input as a randomly named .md file under ~/.codex/editor.
+-- Set those buffers to TeX so LaTeX snippets remain available.
+vim.api.nvim_create_autocmd({ 'BufReadPost', 'BufNewFile', 'BufEnter' }, {
+  pattern = '*.md',
+  callback = function(args)
+    local path = vim.fs.normalize(vim.api.nvim_buf_get_name(args.buf))
+    local codex_editor_dir = vim.fs.normalize(vim.fn.expand '~/.codex/editor') .. '/'
+    if vim.startswith(path, codex_editor_dir) then
+      vim.bo[args.buf].filetype = 'tex'
+    end
+  end,
+})
 -- petteri add fsharp
 vim.filetype.add {
   extension = {
@@ -372,9 +457,81 @@ vim.filetype.add {
 -- add the file type tex, and make it so that wrapping is word, not byte based
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'tex',
-  callback = function()
+  callback = function(event)
     vim.opt_local.wrap = true
     vim.opt_local.linebreak = true
+
+    local function visual_bounds()
+      local anchor = vim.fn.getpos 'v'
+      local cursor = vim.fn.getpos '.'
+      local start_pos = { anchor[2] - 1, anchor[3] - 1 }
+      local end_pos = { cursor[2] - 1, cursor[3] - 1 }
+
+      if start_pos[1] > end_pos[1] or (start_pos[1] == end_pos[1] and start_pos[2] > end_pos[2]) then
+        start_pos, end_pos = end_pos, start_pos
+      end
+
+      if vim.fn.mode() == 'V' then
+        start_pos[2] = 0
+        end_pos[2] = #vim.api.nvim_buf_get_lines(event.buf, end_pos[1], end_pos[1] + 1, false)[1]
+      else
+        local end_line = vim.api.nvim_buf_get_lines(event.buf, end_pos[1], end_pos[1] + 1, false)[1]
+        local char = vim.fn.matchstr(end_line:sub(end_pos[2] + 1), '^.')
+        end_pos[2] = end_pos[2] + #char
+      end
+
+      return start_pos, end_pos
+    end
+
+    local function replace_visual(make_replacement, enter_insert)
+      local start_pos, end_pos = visual_bounds()
+      local selected = vim.api.nvim_buf_get_text(event.buf, start_pos[1], start_pos[2], end_pos[1], end_pos[2], {})
+      local replacement, cursor_row, cursor_col = make_replacement(selected, start_pos)
+
+      if #replacement == 1 then
+        cursor_col = start_pos[2] + cursor_col
+      end
+
+      vim.api.nvim_feedkeys(vim.keycode '<Esc>', 'nx', false)
+      vim.api.nvim_buf_set_text(event.buf, start_pos[1], start_pos[2], end_pos[1], end_pos[2], replacement)
+      vim.api.nvim_win_set_cursor(0, { cursor_row + 1, cursor_col })
+
+      if enter_insert then
+        vim.schedule(function()
+          vim.cmd 'startinsert'
+        end)
+      end
+    end
+
+    vim.keymap.set('x', '/', function()
+      replace_visual(function(selected, start_pos)
+        selected[1] = '\\frac{' .. selected[1]
+        selected[#selected] = selected[#selected] .. '}{}'
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected] - 1
+      end, true)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in a TeX fraction' })
+
+    vim.keymap.set('x', 'mk', function()
+      replace_visual(function(selected, start_pos)
+        selected[1] = '\\( ' .. selected[1]
+        selected[#selected] = selected[#selected] .. ' \\)'
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected] - 1
+      end)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in inline TeX math' })
+
+    vim.keymap.set('x', 'dm', function()
+      replace_visual(function(selected, start_pos)
+        for index, line in ipairs(selected) do
+          selected[index] = '  ' .. line
+        end
+        table.insert(selected, 1, '\\[')
+        table.insert(selected, '\\]')
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected] - 1
+      end)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in display TeX math' })
   end,
 })
 
@@ -728,7 +885,17 @@ require('lazy').setup({
   {
     'numToStr/Comment.nvim',
     config = function()
-      require('Comment').setup()
+      -- Keep the space between a line-comment marker and its text.  Python's
+      -- marker is supplied without padding by Comment.nvim, and padding is
+      -- applied by the commenter itself.
+      require('Comment').setup({
+        padding = true,
+        pre_hook = function()
+          if vim.bo.filetype == 'python' then
+            return '#%s'
+          end
+        end,
+      })
 
       vim.api.nvim_create_autocmd('FileType', {
         pattern = 'fsharp',
@@ -1623,7 +1790,7 @@ require('lazy').setup({
   --    This is the easiest way to modularize your config.
   --
   --  Uncomment the following line and add your plugins to `lua/custom/plugins/*.lua` to get going.
-  -- { import = 'custom.plugins' },
+  { import = 'custom.plugins' },
   --
   -- For additional information with loading, sourcing and examples see `:help lazy.nvim-🔌-plugin-spec`
   -- Or use telescope!

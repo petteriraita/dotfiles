@@ -229,6 +229,9 @@ bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 # making the scrolling be right direction
 # exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" 304 1
 exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" "libinput Natural Scrolling Enabled" 1
+
+# Reduce X11's initial key-repeat pause while keeping its 25 Hz repeat rate.
+exec --no-startup-id xset r rate 250 25
 ## adding screenshot tool:
 
 bindsym $mod+F9 exec --no-startup-id maim -s | xclip -selection clipboard -t image/png
