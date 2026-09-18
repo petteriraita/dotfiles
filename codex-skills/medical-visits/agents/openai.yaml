@@ -1,0 +1,4 @@
+interface:
+  display_name: "Medical Visits"
+  short_description: "Create dashboard-compatible medical visit notes"
+  default_prompt: "Use $medical-visits to add this appointment to my health dashboard."

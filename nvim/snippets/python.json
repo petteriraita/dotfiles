@@ -2,7 +2,7 @@
 	"print variable": {
 		"prefix": "cl",
 		"body": [
-			"print(\"$1\", $1)"
+			"print(\"$1\")"
 		],
 		"description": "Log output to console"
 	},
@@ -19,13 +19,6 @@
 			"print(f\"type($1): {type($1)}\")"
 		],
 		"description": "Log output to console"
-	},
-	"test": {
-		"prefix": "test",
-		"body": [
-			"snippet works"
-		],
-		"description": "test snippet"
 	},
 	"DPrint variable": {
 		"prefix": "dclv",

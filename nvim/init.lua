@@ -184,7 +184,7 @@ vim.keymap.set('n', '<leader>q', vim.diagnostic.setloclist, { desc = 'Open diagn
 
 -- Petteri, add the comment key keymaps
 vim.keymap.set('n', '<C-_>', 'gcc', { remap = true })
-vim.keymap.set('v', '<C-_>', 'gc', { remap = true })
+vim.keymap.set('x', '<C-_>', '<Plug>(comment_toggle_linewise_visual)', { remap = true, desc = 'Comment selected lines' })
 -- set an insert mode remap also
 vim.keymap.set('i', '<C-_>', function()
   local was_blank = vim.api.nvim_get_current_line():match('^%s*$') ~= nil
@@ -244,16 +244,82 @@ vim.keymap.set('n', '<localleader>xx', function()
   end
 end, { desc = 'Open current file externally' })
 
--- Petteri add molten
---
-vim.keymap.set('n', '<localleader>mi', ':MoltenInit<CR>', { silent = true, desc = 'Initialize the plugin' })
-vim.keymap.set('n', '<localleader>e', ':MoltenEvaluateOperator<CR>', { silent = true, desc = 'run operator selection' })
-vim.keymap.set('n', '<localleader>rl', ':MoltenEvaluateLine<CR>', { silent = true, desc = 'evaluate line' })
-vim.keymap.set('n', '<localleader>rr', ':MoltenReevaluateCell<CR>', { silent = true, desc = 're-evaluate cell' })
-vim.keymap.set('v', '<localleader>r', ':<C-u>MoltenEvaluateVisual<CR>gv', { silent = true, desc = 'evaluate visual selection' })
+-- Jupyter/Molten mappings live under <leader>j so they do not take over common
+-- top-level mappings. Jupytext's default "hydrogen" format marks cells with # %%.
+local function evaluate_jupytext_cell()
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local cursor_line = vim.api.nvim_win_get_cursor(0)[1]
+  local marker
 
-vim.keymap.set('n', '<localleader>oh', ':MoltenHideOutput<CR>', { desc = 'close output window', silent = true })
-vim.keymap.set('n', '<localleader>md', ':MoltenDelete<CR>', { desc = 'delete Molten cell', silent = true })
+  for line = cursor_line, 1, -1 do
+    if lines[line]:match '^# %%%%.*' then
+      marker = line
+      break
+    end
+  end
+
+  if not marker then
+    vim.notify('No # %% Jupytext cell found; use <leader>jl or a visual selection', vim.log.levels.WARN)
+    return
+  end
+  if lines[marker]:match '%[markdown%]' then
+    vim.notify('The current Jupytext cell is Markdown, not executable code', vim.log.levels.INFO)
+    return
+  end
+
+  local last_line = #lines
+  for line = marker + 1, #lines do
+    if lines[line]:match '^# %%%%.*' then
+      last_line = line - 1
+      break
+    end
+  end
+
+  local first_line = marker + 1
+  if first_line > last_line then
+    vim.notify('The current Jupytext cell is empty', vim.log.levels.INFO)
+    return
+  end
+  vim.fn.MoltenEvaluateRange(first_line, last_line)
+end
+
+local function init_molten_for_active_python()
+  local environment = vim.env.VIRTUAL_ENV or vim.env.CONDA_PREFIX
+  if environment then
+    local kernel = vim.fs.basename(environment)
+    if vim.tbl_contains(vim.fn.MoltenAvailableKernels(), kernel) then
+      vim.cmd('MoltenInit ' .. vim.fn.fnameescape(kernel))
+      return
+    end
+
+    vim.notify(
+      ('No Jupyter kernel named %q. Install ipykernel in that environment and register it with: python -m ipykernel install --user --name %s'):format(
+        kernel,
+        kernel
+      ),
+      vim.log.levels.WARN
+    )
+  end
+
+  -- No active environment, or it has not been registered yet: let Molten ask.
+  vim.cmd 'MoltenInit'
+end
+
+vim.keymap.set('n', '<leader>ji', init_molten_for_active_python, { silent = true, desc = '[J]upyter init active Python environment' })
+vim.keymap.set('n', '<leader>jc', evaluate_jupytext_cell, { silent = true, desc = '[J]upyter run current [c]ell' })
+vim.keymap.set('n', '<leader>je', '<cmd>MoltenEvaluateOperator<CR>', { silent = true, desc = '[J]upyter [e]valuate motion' })
+vim.keymap.set('n', '<leader>jl', '<cmd>MoltenEvaluateLine<CR>', { silent = true, desc = '[J]upyter run [l]ine' })
+vim.keymap.set('x', '<leader>jv', ':<C-u>MoltenEvaluateVisual<CR>gv', { silent = true, desc = '[J]upyter run [v]isual selection' })
+vim.keymap.set('n', '<leader>jr', '<cmd>MoltenReevaluateCell<CR>', { silent = true, desc = '[J]upyter [r]erun evaluated cell' })
+vim.keymap.set('n', '<leader>jx', '<cmd>MoltenInterrupt<CR>', { silent = true, desc = '[J]upyter interrupt kernel' })
+vim.keymap.set('n', '<leader>jo', '<cmd>noautocmd MoltenEnterOutput<CR>', { silent = true, desc = '[J]upyter open [o]utput' })
+vim.keymap.set('n', '<leader>jh', '<cmd>MoltenHideOutput<CR>', { silent = true, desc = '[J]upyter [h]ide output' })
+vim.keymap.set('n', '<leader>jp', '<cmd>MoltenImagePopup<CR>', { silent = true, desc = '[J]upyter image [p]opup' })
+vim.keymap.set('n', '<leader>jd', '<cmd>MoltenDelete<CR>', { silent = true, desc = '[J]upyter [d]elete cell output' })
+vim.keymap.set('n', '<leader>jn', '<cmd>MoltenNext<CR>', { silent = true, desc = '[J]upyter [n]ext evaluated cell' })
+vim.keymap.set('n', '<leader>jk', '<cmd>MoltenPrev<CR>', { silent = true, desc = '[J]upyter previous evaluated cell' })
+vim.keymap.set('n', '<leader>jI', '<cmd>MoltenImportOutput<CR>', { silent = true, desc = '[J]upyter [I]mport notebook outputs' })
+vim.keymap.set('n', '<leader>jE', '<cmd>MoltenExportOutput!<CR>', { silent = true, desc = '[J]upyter [E]xport outputs to notebook' })
 
 -- Keybinds to make split navigation easier.
 --  Use CTRL+<hjkl> to switch between windows
@@ -543,8 +609,11 @@ vim.api.nvim_create_user_command('Leetformat', function(opts)
   vim.cmd(range .. 's/"/\'/g')
 end, { range = true })
 
---- petteri, add the python path to strict
-vim.g.python3_host_prog = vim.fn.exepath 'python3'
+-- Keep Neovim's remote-plugin Python independent from project environments.
+-- Do not prepend it to PATH: Python language servers must see the active project
+-- environment first. Jupytext is exposed separately through ~/.local/bin.
+local neovim_python_dir = vim.fn.expand '~/.virtualenvs/neovim/bin'
+vim.g.python3_host_prog = neovim_python_dir .. '/python'
 
 -- [[ Configure and install plugins ]]
 --
@@ -602,10 +671,13 @@ require('lazy').setup({
     '3rd/image.nvim',
     opts = {
       backend = 'kitty',
+      processor = 'magick_cli',
       max_width = 100,
-      max_height = 12,
+      max_height = 20,
       max_height_window_percentage = math.huge,
       max_width_window_percentage = math.huge,
+      window_overlap_clear_enabled = true,
+      window_overlap_clear_ft_ignore = { 'cmp_menu', 'cmp_docs', '' },
 
       rocks = {
         enabled = false,
@@ -840,6 +912,9 @@ require('lazy').setup({
   -- Petteri --- start of my second plugin (vimtex)
   {
     'lervag/vimtex',
+    -- VimTeX raised its minimum to Neovim 0.12.4 after this revision;
+    -- Fedora currently provides Neovim 0.11.
+    commit = '997878de3c0c1a6a73326375744ebc483cb65823',
     ft = { 'tex', 'bib' },
     init = function()
       -- Adding these things that make latex render on screen while editing
@@ -915,15 +990,31 @@ require('lazy').setup({
           vim.bo.commentstring = '// %s'
         end,
       })
+
     end,
   },
   -- petteri add jupyter notebook plugin
   {
     'benlubas/molten-nvim',
     build = ':UpdateRemotePlugins',
-    config = function()
-      vim.g.molten_auto_open_output = true
+    dependencies = { '3rd/image.nvim' },
+    init = function()
+      vim.g.molten_auto_open_output = false
+      vim.g.molten_image_provider = 'image.nvim'
+      vim.g.molten_image_location = 'virt'
+      vim.g.molten_output_win_max_height = 20
+      vim.g.molten_output_show_more = true
+      vim.g.molten_virt_text_output = true
+      vim.g.molten_wrap_output = true
     end,
+  },
+  {
+    'GCBallesteros/jupytext.nvim',
+    lazy = false,
+    opts = {
+      style = 'hydrogen',
+      output_extension = 'auto',
+    },
   },
   -- Petteri, add the isabelle conceal plugin
   {
@@ -1053,6 +1144,7 @@ require('lazy').setup({
       spec = {
         { '<leader>s', group = '[S]earch' },
         { '<leader>t', group = '[T]oggle' },
+        { '<leader>j', group = '[J]upyter' },
         { '<leader>h', group = 'Git [H]unk', mode = { 'n', 'v' } },
       },
     },
@@ -1387,7 +1479,21 @@ require('lazy').setup({
       local servers = {
         -- clangd = {},
         -- gopls = {},
-        -- pyright = {},
+        pyright = {
+          -- Match the interpreter from the shell that launched Neovim. This is
+          -- independent of g:python3_host_prog, which is only for remote plugins.
+          settings = {
+            python = {
+              pythonPath = (function()
+                local environment = vim.env.VIRTUAL_ENV or vim.env.CONDA_PREFIX
+                if environment then
+                  return vim.fs.joinpath(environment, 'bin', 'python')
+                end
+                return vim.fn.exepath 'python3'
+              end)(),
+            },
+          },
+        },
         -- rust_analyzer = {},
         -- ... etc. See `:help lspconfig-all` for a list of all the pre-configured LSPs
         --
@@ -1443,6 +1549,10 @@ require('lazy').setup({
           },
         },
       }
+
+      -- mason-lspconfig can auto-enable installed servers before its legacy
+      -- handler runs. Register this environment-sensitive override first.
+      vim.lsp.config('pyright', servers.pyright)
 
       -- Ensure the servers and tools above are installed
       --
@@ -1747,21 +1857,33 @@ require('lazy').setup({
   },
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    -- Neovim 0.11 uses the backwards-compatible Treesitter branch.  The new
+    -- main branch requires Neovim 0.12 and does not understand this config.
+    branch = 'master',
     build = ':TSUpdate',
     -- [[ Configure Treesitter ]] See `:help nvim-treesitter`
     opts = {
+      -- The legacy installer passes --no-bindings, which tree-sitter 0.26
+      -- removed. Keep parser installation explicit instead of failing while
+      -- opening an unrelated file.
       ensure_installed = { 'bash', 'c', 'diff', 'fsharp', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' },
-      -- Autoinstall languages that are not installed
-      auto_install = true,
+      auto_install = false,
+      -- VimTeX provides the richer TeX syntax/conceal layer. In particular,
+      -- never invoke nvim-treesitter's incompatible LaTeX installer.
+      ignore_install = { 'latex' },
       highlight = {
         enable = true,
+        disable = { 'latex' },
         -- Some languages depend on vim's regex highlighting system (such as Ruby) for indent rules.
         --  If you are experiencing weird indenting issues, add the language to
         --  the list of additional_vim_regex_highlighting and disabled languages for indent.
         additional_vim_regex_highlighting = { 'ruby' },
       },
-      indent = { enable = true, disable = { 'ruby' } },
+      indent = { enable = true, disable = { 'ruby', 'latex' } },
     },
+    config = function(_, opts)
+      require('nvim-treesitter.configs').setup(opts)
+    end,
     -- There are additional nvim-treesitter modules that you can use to interact
     -- with nvim-treesitter. You should go explore a few and see what interests you:
     --

@@ -16,4 +16,6 @@ npm start
 
 Then open `http://127.0.0.1:4173/` and use the relevant part of the site: daily signals and diary data, doctor/physio visits, or AI case history. The site also links to its live AI context when a compact text view is useful.
 
+When creating or editing a doctor, physiotherapy, surgery, or nursing visit in the dashboard's `Visits` folder, use the `medical-visits` skill. Its frontmatter and live-API validation are required; a file existing in Obsidian is not enough to establish that the dashboard can read it.
+
 Keep this information local. Do not edit health records, share them, or contact anyone unless the user explicitly asks.

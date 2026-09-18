@@ -230,8 +230,8 @@ bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 # exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" 304 1
 exec --no-startup-id xinput set-prop "SYNA801A:00 06CB:CEC6 Touchpad" "libinput Natural Scrolling Enabled" 1
 
-# Reduce X11's initial key-repeat pause while keeping its 25 Hz repeat rate.
-exec --no-startup-id xset r rate 250 25
+# Reduce X11's initial key-repeat pause and keep sustained repeats gentle.
+exec --no-startup-id xset r rate 250 15
 ## adding screenshot tool:
 
 bindsym $mod+F9 exec --no-startup-id maim -s | xclip -selection clipboard -t image/png
@@ -262,11 +262,10 @@ bindsym --whole-window button7 nop
 ### bind a key for the keepass
 bindsym $mod+p exec --no-startup-id keepassxc
 
-### streaming push-to-talk: Kanata emits raw keycode 191 on Page Down press, 192 on release
-set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-moonshine
+### toggle dictation: each Page Down press starts or stops large-v3-turbo
+set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation
 exec_always --no-startup-id $ptt worker-start
-bindcode 191 exec --no-startup-id $ptt start
-bindcode 192 exec --no-startup-id $ptt stop
+bindcode 191 exec --no-startup-id $ptt toggle
 
 ### small.en A/B test: Kanata emits F15/F16 from physical Page Up
 set $ptt_small /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-small

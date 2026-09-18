@@ -15,7 +15,7 @@ Before creating a note, search filenames and content for an existing note on the
 
 ## Resume line
 
-At the very top of each new note, add a fenced code block containing the command for resuming the current Codex conversation:
+For ordinary unstructured notes, add or update a fenced code block at the top containing the command for resuming the current Codex conversation:
 
 ```text
 codexa CURRENT_CONVERSATION_ID
@@ -29,6 +29,8 @@ Use the actual current conversation ID; never copy an ID from an example or anot
 
 The helper searches `/home/pt/.codex/sessions` and prints the session ID from the newest matching transcript. If there is no unique match, inspect the matching files instead of guessing.
 
+Never place a resume block before YAML frontmatter. Machine-read structured notes must retain `---` as the first bytes of the file. In particular, use the dedicated `daily-notes` or `medical-visits` skill for daily notes and health visit records, and do not add a resume block unless that schema explicitly provides a field for it.
+
 ## Style
 
 - Be terse. Aim for roughly half a screen or page and never exceed one page unless the user asks or the necessary source material cannot fit.
@@ -39,7 +41,7 @@ The helper searches `/home/pt/.codex/sessions` and prints the session ID from th
 - Preserve exact commands, absolute paths, IDs, URLs, and other details needed to act later.
 - Omit background, repeated explanations, generic cautions, and empty sections.
 - Use `[[wikilinks]]` only for clearly relevant notes that already exist. Do not invent a linking scheme.
-- When editing, preserve the note's established format unless the user asks to simplify it. Do not add or replace a resume line on an existing note unless the user asks.
+- When editing an unstructured note, preserve its established format and refresh an existing resume command at the top. Do not force this convention onto a structured collection whose schema or parser requires something else.
 
 ## User communication
 

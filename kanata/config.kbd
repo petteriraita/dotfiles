@@ -37,7 +37,6 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 (deffakekeys
   ptt-start f13
-  ptt-stop  f14
   ptt-small-start f15
   ptt-small-stop  f16
 )
@@ -46,12 +45,9 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 
 (defalias
-  ;; Physical Page Down: tap F13 on press and F14 on release. i3 runs the
-  ;; user-session Moonshine streaming commands for the two virtual keys.
-  ptt (multi
-        (on-press-fakekey ptt-start tap)
-        (on-release-fakekey ptt-stop tap)
-      )
+  ;; Physical Page Down taps F13 once per press. i3 toggles the user-session
+  ;; large-v3-turbo recorder: first press starts, second press stops.
+  ptt (on-press-fakekey ptt-start tap)
 
   ;; Physical Page Up is an isolated faster-whisper small.en experiment.
   ptt-small (multi
@@ -83,6 +79,14 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   comma (tap-hold-release-keys $tap_timeout $hold_timeout , rsft $right-hand-keys-no-mods)
   semi  (tap-hold-release-keys $tap_timeout $long_hold_timeout ; lmet $right-hand-keys-no-mods)
   p  (tap-hold-release-keys $tap_timeout $long_hold_timeout p lalt $right-hand-keys-no-mods)
+
+  ;; Chromium reserves Ctrl+W for closing tabs. In Brave, keep Ctrl+W as
+  ;; word-delete and make Alt+W emit native Ctrl+W to close the tab.
+  brave-w (switch
+    (lalt ralt) (unmod (lalt ralt) lctl w) break
+    (lctl rctl) bspc break
+    () w break
+  )
 
 
 
@@ -186,6 +190,15 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           1      2      3      4      5           6      7      8      9      0
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      j      @k     @l     @semi
+          @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
+                       @lalt          @nav            @ralt          @ptt-small @ptt
+)
+
+;; Base behavior except Ctrl+W becomes Ctrl+Backspace in Brave.
+(deflayer brave
+          1      2      3      4      5           6      7      8      9      0
+          q      @brave-w e      r      t           y      u      i      o      @p
+   @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
                        @lalt          @nav            @ralt          @ptt-small @ptt
 )

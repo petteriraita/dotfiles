@@ -1,0 +1,4 @@
+interface:
+  display_name: "Daily Notes"
+  short_description: "Update existing daily-note health fields only"
+  default_prompt: "Use $daily-notes to add this update to the correct daily note."

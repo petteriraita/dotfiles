@@ -10,6 +10,8 @@ GAME_CLASS_REGEX="${GAME_CLASS_REGEX:-steam_proton}"
 GAME_TITLE_REGEX="${GAME_TITLE_REGEX:-}"
 SIOYEK_LAYER="${SIOYEK_LAYER:-sioyek}"
 SIOYEK_CLASS_REGEX="${SIOYEK_CLASS_REGEX:-sioyek}"
+BRAVE_LAYER="${BRAVE_LAYER:-brave}"
+BRAVE_CLASS_REGEX="${BRAVE_CLASS_REGEX:-brave-browser}"
 POLL_INTERVAL="${POLL_INTERVAL:-0.2}"
 LOG_PREFIX="${LOG_PREFIX:-kanata-layer-watch}"
 
@@ -60,6 +62,8 @@ detect_layer() {
 
     if [[ "$class_value" =~ $SIOYEK_CLASS_REGEX ]]; then
         desired_layer="$SIOYEK_LAYER"
+    elif [[ "$class_value" =~ $BRAVE_CLASS_REGEX ]]; then
+        desired_layer="$BRAVE_LAYER"
     elif [[ "$class_value" =~ $GAME_CLASS_REGEX ]]; then
         if [[ -z "$GAME_TITLE_REGEX" ]]; then
             desired_layer="$GAME_LAYER"
@@ -86,7 +90,7 @@ wait_for_kanata() {
 main() {
     local desired_layer
 
-    log "starting with DISPLAY='${DISPLAY:-}' XAUTHORITY='${XAUTHORITY:-}' port='$KANATA_PORT' game_class_regex='$GAME_CLASS_REGEX' sioyek_class_regex='$SIOYEK_CLASS_REGEX'"
+    log "starting with DISPLAY='${DISPLAY:-}' XAUTHORITY='${XAUTHORITY:-}' port='$KANATA_PORT' game_class_regex='$GAME_CLASS_REGEX' sioyek_class_regex='$SIOYEK_CLASS_REGEX' brave_class_regex='$BRAVE_CLASS_REGEX'"
     wait_for_kanata
     send_layer_change "$DEFAULT_LAYER"
 
