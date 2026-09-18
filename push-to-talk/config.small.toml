@@ -1,4 +1,0 @@
-[whisper]
-# English-only comparison model for physical Page Up. All other recording,
-# paste, notification, and worker settings inherit from config.toml.
-model = "small.en"
