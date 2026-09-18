@@ -6,55 +6,98 @@ CLI. It never presses Enter.
 
 ## Architecture
 
-```text
-Page Down held -> default microphone -> resident Moonshine Medium Streaming
-                                      `-> partials processed while speaking
+### Recording queue
 
-Page Down up   -> drain final phrase -> close microphone -> xclip -> xdotool
-                                                        `-> no Enter
+Page Down's second press now saves the clip and releases the microphone slot;
+you can start another recording while older clips transcribe. Page Up uses the
+same FIFO queue. Text is pasted in clip order, with a separating space, into
+each clip's originally focused window. Enter is never pressed. Delivery can
+restore that window while you are recording another clip.
 
-Page Up held   -> pw-record -> private WAV -> resident small.en worker
+Audio and job records (including recognized text) live in
+`~/.local/state/ptt-dictation/queue/`, with private permissions. Even clips below
+the previous 0.25-second threshold are retained and attempted. An empty result
+does not erase its audio. The synchronous `stop --no-paste` diagnostic retains
+the old behavior; use normal hotkeys for queued operation.
 
-Turbo remains available through bin/ptt-dictation as the batch-quality fallback.
+Defaults under `[queue]` in `config.toml`:
+
+- At most 10 unfinished jobs; new recordings are refused when full.
+- 100 MB storage budget, reserving space before starting a new clip.
+- Five minutes per recording; the recording monitor automatically queues it.
+- Completed/empty clips expire after 24 hours (pruned on the next start).
+- Failed clips are retained and count against the limits. Storage exhaustion
+  refuses new capture rather than deleting failed audio.
+- Toggle presses less than 150 ms apart, or presses arriving while the prior
+  control operation is still running, are rejected with a brief notification.
+
+The queue resumes on the next normal control command after a process restart
+or login, or explicitly with `queue-resume`. Recording no longer waits for
+Whisper to finish. Failure pauses later pastes to preserve their order.
+
+```bash
+cd /home/pt/dev/dotfiles/push-to-talk
+bin/ptt-dictation queue-status
+bin/ptt-dictation queue-resume
+bin/ptt-dictation queue-retry job-FILENAME-FROM-STATUS.json
+bin/ptt-dictation queue-skip job-FILENAME-FROM-STATUS.json
+tail -f ~/.local/state/ptt-dictation/queue.log
 ```
 
-- Physical Page Down uses Moonshine's 245-million-parameter English Medium
-  Streaming model. A private worker keeps only the neural model resident. Each
-  hold creates a fresh microphone stream and each release drains and closes it,
-  so the audio device is not kept open while idle. No Page Down audio file is
-  created.
-- Moonshine performs recognition throughout the recording and commits immutable
-  lines at pauses. Mutable partial hypotheses remain internal; only the combined
-  final text is pasted after release.
-- `pw-record` remains the native PipeWire recorder for the batch Whisper paths.
-  With no explicit target it follows PipeWire's current default source.
+Retry reprocesses and may paste again; inspect saved text first. Skip releases
+the blocked queue and retains the clip under normal completed retention.
+A `delivering` job after a crash needs manual review: X11 cannot confirm
+whether paste happened, so it is never automatically replayed. Orphan WAVs
+from an interrupted capture are shown by `queue-status`; finalized WAVs can
+be recovered using `transcribe-file`. A power loss mid-recording may leave an
+unfinished WAV header that needs repair. The queue does not promise exactly
+once paste across crashes.
+
+```text
+Page Down first press  -> pw-record -> private WAV -> live level/source notification
+Page Down second press -> resident large-v3-turbo -> xclip -> xdotool -> no Enter
+
+Page Up held   -> pw-record -> private WAV -> live level/source notification
+Page Up up     -> resident small.en -> xclip -> xdotool -> no Enter
+```
+
+- Physical Page Down toggles the more accurate `large-v3-turbo` Whisper model:
+  its first press records and its second press stops, transcribes, and pastes.
+  Physical Page Up remains the faster held-key `small.en` comparison model.
+- `pw-record` is the native PipeWire recorder. Its stream is explicitly marked
+  `Capture` + `Communication`, allowing WirePlumber's enabled Bluetooth policy
+  to switch a connected headset from output-only A2DP to its microphone-capable
+  headset profile while recording.
+- While either key is held, a replaceable, noncritical notification shows the
+  physical microphone feeding the stream, its live dBFS level, and whether a
+  voice-level signal has been detected. If no signal appears after three
+  seconds it warns immediately rather than waiting until transcription.
 - faster-whisper runs `large-v3-turbo` and `small.en` through CTranslate2 on the
   CPU with INT8. This machine's Radeon 860M is not exposed as a supported
   CTranslate2 GPU, so the eight physical Ryzen CPU cores remain the reliable
   Whisper backend.
-- Physical Page Up is a controlled speed/accuracy experiment using the
-  English-only `small.en` model. It has a separate Unix socket, process, state,
-  and logs, so both models can remain resident simultaneously. Recording state
-  is still shared: only one microphone session can exist at a time, and a
-  release event from the other hotkey is ignored.
-- The Page Down model worker is warmed by i3 at login/reload. If it is stopped,
-  stale, or its configuration changes, the controller recreates it. Turbo and
-  Small retain their direct-transcription fallback.
+- Turbo and Small have separate Unix sockets, processes, state, and logs, so
+  both can remain resident simultaneously. Recording state is still shared:
+  only one microphone session can exist at a time, and a release event from the
+  other hotkey is ignored.
+- The Page Down Turbo worker is warmed by i3 at login/reload. Both workers retain
+  their direct-transcription fallback.
 - `xclip` owns the X11 clipboard and `xdotool` sends one `Ctrl+Shift+V`. This is
   much more reliable in terminals than simulating every character.
 - The X11 window focused when recording starts is remembered and refocused before
   paste. Notifications do not redirect the output.
-- A locked state file prevents duplicate recorders and duplicate `stop` actions.
-  A new recording is refused while the previous recording is transcribing.
-- Batch audio exists only under `$XDG_RUNTIME_DIR/ptt-dictation/` and is removed
-  after success, failure, or cancellation. Moonshine streams from memory and
-  does not create temporary audio.
+- A locked state file prevents duplicate recorders; completed captures move
+  into the persistent queue while new capture proceeds independently.
+- Explicit cancellation discards the active recording. Queued recordings follow
+  the retention and recovery rules above.
+- An empty Whisper result is logged and shown as a five-second transient normal
+  notification. It is no longer treated as a critical red/sticky failure.
 - Logs live in `~/.local/state/ptt-dictation/`. Whisper models live under
   `~/.cache/ptt-dictation/`; Moonshine uses `~/.cache/moonshine_voice/`.
-- The completion notification reports recording length, release-to-result
+- The completion notification reports recording length, second-press-to-result
   latency, transcribed word count, and speaking words per minute (WPM). The WPM
-  uses finalized audio duration; release latency runs from the i3 `stop` command
-  until paste has been sent (or the clipboard fallback is ready).
+  uses finalized audio duration; result latency runs until paste has been sent
+  (or the clipboard fallback is ready).
 
 ## Dependencies
 
@@ -65,7 +108,7 @@ Runtime Fedora packages:
 - `xdotool`
 - `libnotify` (`notify-send`)
 - `httpd-core` (`rotatelogs`, used only as a lightweight bounded-log sink)
-- `portaudio` (microphone capture used by Moonshine's Python binding)
+- `portaudio` (only for the optional Moonshine backend)
 
 All six are already installed on this Fedora 43 machine. `ffmpeg`, `arecord`,
 and `parec` were inspected but are not needed. No sudo installation was performed.
@@ -95,7 +138,7 @@ For use from any directory, create a user-local launcher symlink:
 ln -s /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation ~/.local/bin/ptt-dictation
 ln -s /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-small ~/.local/bin/ptt-dictation-small
 ln -s /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-moonshine ~/.local/bin/ptt-dictation-moonshine
-ptt-dictation-moonshine doctor
+ptt-dictation doctor
 ```
 
 This dotfiles repository also exposes `bin/ptt-dictation`, so from
@@ -115,8 +158,8 @@ bin/ptt-dictation-small worker-start
 bin/ptt-dictation-small worker-status
 ```
 
-Moonshine Medium Streaming downloads about 293 MB into
-`~/.cache/moonshine_voice/`. Warm and verify it with:
+The optional Moonshine experiment remains installed and downloads about 293 MB
+into `~/.cache/moonshine_voice/`. It is no longer assigned to a physical key:
 
 ```bash
 bin/ptt-dictation-moonshine worker-start
@@ -144,9 +187,19 @@ fallback_to_direct = true
 [paste]
 hotkey = "ctrl+shift+v"       # appropriate for kitty and most terminals
 focus_original_window = true
+
+[recording]
+media_category = "Capture"    # enables WirePlumber Bluetooth headset policy
+media_role = "Communication"
+
+[recording.feedback]
+enabled = true
+activity_threshold_dbfs = -45.0
+silence_warning_seconds = 3.0
 ```
 
-Page Down adds the tracked `config.moonshine.toml` overlay:
+The optional Moonshine launcher adds the tracked `config.moonshine.toml`
+overlay:
 
 ```toml
 [moonshine]
@@ -176,10 +229,10 @@ setting from `config.toml`.
 isolated Moonshine socket, process state, and logs. The global session lock is
 shared across all three backends.
 
-The worker has no artificial RAM cap. On this machine it measured about 976 MiB
-immediately after loading and about 1.1 GiB after transcription, comfortably
-within the available memory. Turbo remains the batch-quality fallback rather
-than the physical Page Down backend.
+The worker has no artificial RAM cap. On this machine Turbo measured about 976
+MiB immediately after loading and about 1.1 GiB after transcription,
+comfortably within the available memory. Turbo is the physical Page Down
+backend.
 
 ### What beam size means
 
@@ -216,34 +269,32 @@ bin/ptt-dictation-small worker-status
 bin/ptt-dictation-small worker-stop
 ```
 
-- The `ptt-dictation-moonshine` launcher is the physical Page Down backend.
-  `start` opens the default microphone and streams recognition in the resident
-  worker; `stop` drains the final phrase, closes the microphone, copies, and
-  pastes without Enter.
+- The plain `ptt-dictation` launcher is the physical Page Down Turbo backend.
+  `start` begins PipeWire recording; `stop` transcribes, copies, and pastes
+  without Enter.
 - `stop --no-paste` prints the transcription instead.
-- `cancel` closes the microphone and discards the accumulated streaming text.
-- Moonshine `worker-start` loads Medium Streaming but does not open the
-  microphone. i3 runs it automatically at login and reload.
+- `cancel` closes the microphone and discards the recording.
+- Turbo `worker-start` loads `large-v3-turbo` without opening the microphone.
+  i3 runs it automatically at login and reload.
 - `worker-status` shows the phase, PID, and current resident memory.
 - `worker-stop` releases the resident model memory. The next recording starts it
   again automatically.
-- The plain `ptt-dictation` launcher remains the Turbo batch backend and retains
-  `toggle`, file transcription, microphone-test, and paste-test commands.
 - The `ptt-dictation-small` launcher supports the same commands but operates on
   the Page Up `small.en` worker. It does not replace or stop the Turbo worker.
+- `ptt-dictation-moonshine` remains available only as an optional experiment;
+  no physical key invokes it.
 
 ## Exact i3 binding
 
-Kanata taps virtual F13/F14 for physical Page Down and F15/F16 for physical Page
-Up. On this X11 keyboard map those appear as raw keycodes 191-194 without
-keysyms, so these bindings are installed in
+Kanata taps virtual F13 for each physical Page Down press and F15/F16 for
+physical Page Up press/release. On this X11 keyboard map those appear as raw
+keycodes 191, 193, and 194 without keysyms, so these bindings are installed in
 `/home/pt/dev/dotfiles/i3config`:
 
 ```i3config
-set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-moonshine
+set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation
 exec_always --no-startup-id $ptt worker-start
-bindcode 191 exec --no-startup-id $ptt start
-bindcode 192 exec --no-startup-id $ptt stop
+bindcode 191 exec --no-startup-id $ptt toggle
 
 set $ptt_small /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-small
 bindcode 193 exec --no-startup-id $ptt_small start
@@ -260,8 +311,8 @@ i3-msg reload
 The Kanata service needs the first command because it is a system service. This
 is only a service restart; it installs no package. On the next login/reboot,
 Kanata and i3 load these tracked configurations automatically. The model workers
-are recreated automatically; i3 proactively warms Moonshine so Page Down starts
-capturing immediately.
+are recreated automatically; i3 proactively warms Turbo so Page Down can
+transcribe without a cold model load.
 
 ### Kanata
 
@@ -270,9 +321,9 @@ dictation command directly from Kanata: it would inherit the wrong user,
 `DISPLAY`, clipboard, cache, and state directories.
 
 The physical `pgdn` and `pgup` keys are included in `defsrc` on every layer.
-Physical Page Down taps F13/F14 for Moonshine; physical Page Up taps F15/F16 for
-Small. i3 maps F13/F14 to Moonshine and F15/F16 to Small with the correct X11
-user environment. The separate `pgdn` and `pgup` actions on the navigation
+Physical Page Down taps F13 for Turbo; i3 treats every F13 event as a toggle.
+Physical Page Up taps F15/F16 for held-key Small. i3 runs both in the correct
+X11 user environment. The separate `pgdn` and `pgup` actions on the navigation
 layer are unchanged, so those layer combinations still produce normal
 navigation keys.
 
@@ -326,16 +377,16 @@ Use `--clipboard-only` to test copying without synthesizing the paste shortcut.
 
 ### 4. Complete push-to-talk cycle
 
-Test the streaming backend manually:
+Test the Turbo backend manually:
 
 ```bash
-bin/ptt-dictation-moonshine worker-start
-bin/ptt-dictation-moonshine start
+bin/ptt-dictation worker-start
+bin/ptt-dictation start
 # Speak a sentence, then:
-bin/ptt-dictation-moonshine stop --no-paste
+bin/ptt-dictation stop --no-paste
 ```
 
-Focus Codex CLI, hold the physical Page Down key, dictate, and release it.
+Focus Codex CLI, press physical Page Down once, dictate, then press it again.
 The result should appear at the prompt without being submitted.
 
 ### 5. Compare Turbo and Small fairly
@@ -356,22 +407,21 @@ unlink /tmp/ptt-ab.wav
 
 Repeat each transcription once before judging speed; the first request includes
 filesystem/cache warm-up. Compare technical terms, punctuation, names, and
-omissions—not only elapsed time. These commands remain useful for comparing the
-two batch Whisper fallbacks; physical Page Down now uses Moonshine.
+omissions—not only elapsed time. Physical Page Down uses Turbo and physical
+Page Up uses Small.
 
-## Moonshine streaming implementation
+## Optional Moonshine streaming experiment
 
 The Page Up experiment is still ordinary faster-whisper: it records the whole
 utterance and transcribes only after release. A smaller model can reduce compute
 time, but it cannot remove that architecture's fixed finalize/encode/decode
 latency.
 
-Physical Page Down now uses Moonshine's Gen 2 Medium Streaming model. It caches
-encoded audio and decoder state instead of reprocessing the complete recording.
-The `moonshine-voice` package uses an ONNX Runtime/C++ core and emits mutable
-partials plus immutable completed lines. The published accuracy numbers are
-vendor benchmarks, so Turbo remains available when exact technical wording is
-more important than release latency.
+The unbound `ptt-dictation-moonshine` launcher uses Moonshine's Gen 2 Medium
+Streaming model. It caches encoded audio and decoder state instead of
+reprocessing the complete recording. It remains available for experiments, but
+Turbo replaced it on Page Down because Turbo was more accurate for this user's
+dictation.
 
 Integration should retain the reliable X11 tail of this project:
 
@@ -436,6 +486,7 @@ tail -f ~/.local/state/ptt-dictation/ptt-moonshine.log
 tail -f ~/.local/state/ptt-dictation/moonshine-worker.log
 tail -f ~/.local/state/ptt-dictation/ptt.log
 tail -f ~/.local/state/ptt-dictation/recorder.log
+tail -f ~/.local/state/ptt-dictation/monitor.log
 tail -f ~/.local/state/ptt-dictation/clipboard.log
 tail -f ~/.local/state/ptt-dictation/worker.log
 tail -f ~/.local/state/ptt-dictation/ptt-small.log
@@ -444,9 +495,7 @@ tail -f ~/.local/state/ptt-dictation/worker-small.log
 
 The log files are all under `~/.local/state/ptt-dictation/`:
 
-- `ptt-moonshine.log` is the main Page Down log. It records session lifecycle,
-  finalization latency, maximum streaming-line latency, text size, WPM, paste
-  delivery, warnings, and Python tracebacks.
+- `ptt-moonshine.log` belongs to the optional, unbound Moonshine experiment.
 - `moonshine-worker.log` captures native Moonshine, model-loading, PortAudio,
   and uncaught worker-process output.
 - `ptt.log` is the main log. It records start/stop, Whisper results, paste
@@ -455,6 +504,8 @@ The log files are all under `~/.local/state/ptt-dictation/`:
   release-to-result latency, word count, WPM, and whether automatic paste
   succeeded. Usually, this is the first file to inspect.
 - `recorder.log` contains errors written by `pw-record` and PipeWire.
+- `monitor.log` and `monitor-small.log` contain unexpected failures from the
+  live source/level notification processes; they are normally empty.
 - `clipboard.log` contains errors written by `xclip`.
 - `worker.log` captures uncaught startup failures from the resident Whisper
   process. Normal worker lifecycle and request timings are recorded in
@@ -464,7 +515,7 @@ The log files are all under `~/.local/state/ptt-dictation/`:
 `ptt.log` rotates at 1 MB and retains three backups. Each component log retains
 its current 1 MB file and one 1 MB backup, including output produced during one
 long-running process. The complete log directory is therefore bounded to
-approximately 22 MB with all three model profiles (plus a small allowance for
+approximately 26 MB with all three model profiles (plus a small allowance for
 the final write at rotation).
 
 An empty `recorder.log` or `clipboard.log` is normal when that component has not
@@ -476,6 +527,7 @@ To inspect recent failures without following the files continuously:
 tail -n 100 ~/.local/state/ptt-dictation/ptt-moonshine.log
 tail -n 100 ~/.local/state/ptt-dictation/moonshine-worker.log
 tail -n 100 ~/.local/state/ptt-dictation/ptt.log
+tail -n 100 ~/.local/state/ptt-dictation/monitor.log
 grep -E ' (ERROR|WARNING) ' ~/.local/state/ptt-dictation/ptt.log | tail -n 30
 journalctl -u kanata.service -n 100 --no-pager
 ```
@@ -486,15 +538,22 @@ journalctl -u kanata.service -n 100 --no-pager
 pactl info | grep 'Default Source'
 wpctl status
 wpctl get-volume @DEFAULT_AUDIO_SOURCE@
-bin/ptt-dictation-moonshine doctor
+bin/ptt-dictation doctor
 bin/ptt-dictation record-test --seconds 3 --keep /tmp/ptt-mic-test.wav
 ```
 
 If the WAV is silent, select/unmute the intended source with `wpctl` or the
 desktop audio controls, then repeat `record-test`. `recorder.log` contains
-PipeWire connection errors. Page Down uses PortAudio through Moonshine rather
-than `pw-record`; inspect `moonshine-worker.log` for its device errors. The
-`doctor` device probe has a three-second timeout so diagnostics cannot hang.
+PipeWire connection errors. While recording, the notification names the
+physical source behind EasyEffects and displays a live dBFS meter. With a
+Bluetooth headset connected, verify that it names the headset rather than the
+laptop microphone.
+
+The WH-1000XM3 cannot provide its high-quality A2DP playback mode and microphone
+at the same time. Starting dictation intentionally advertises a communications
+capture stream so WirePlumber temporarily selects its headset profile; playback
+quality may drop while the key is held and returns afterward. Check the policy
+with `wpctl settings bluetooth.autoswitch-to-headset-profile` (expected `true`).
 
 ### Transcription failures or slowness
 
@@ -511,19 +570,16 @@ tail -n 100 ~/.local/state/ptt-dictation/worker.log
 ```
 
 - A first-run network failure affects only the model download; retry the command.
-- Moonshine logs `finalization_seconds`, `max_line_latency_ms`, and complete
-  release-to-result time separately. For a long recording, finalization should
-  depend mainly on the last active phrase rather than total recording length.
-- If Page Down's worker appears stale, run
-  `bin/ptt-dictation-moonshine worker-stop` followed by `worker-start`.
 - An empty transcription usually means the recording was silent or too short.
+  It now produces only a five-second normal transient notice, never the sticky
+  critical red failure panel.
 - English is forced by default to avoid language-detection latency. Set
   `language = ""` in `config.local.toml` only when multilingual detection is
   needed. Reducing `beam_size` or selecting a smaller model may be faster but
   can reduce transcription quality.
 - To force a clean model download, remove only `~/.cache/ptt-dictation/` and run
   the known-sample test again.
-- If the worker appears stale, run `bin/ptt-dictation worker-stop`; the next
+- If Page Down's worker appears stale, run `bin/ptt-dictation worker-stop`; the next
   recording recreates it. Direct fallback remains available if startup fails.
 
 ### Clipboard/paste failures
@@ -549,12 +605,13 @@ clipboard-only success rather than losing the completed transcription.
 No new system service or Fedora package was installed. The existing Kanata and
 i3 configurations were updated. To remove the project completely:
 
-1. Run `bin/ptt-dictation-moonshine cancel` if Page Down is recording, then
-   `bin/ptt-dictation-moonshine worker-stop`,
-   `bin/ptt-dictation cancel`,
-   `bin/ptt-dictation worker-stop` and
-   `bin/ptt-dictation-small worker-stop`.
+1. Run `bin/ptt-dictation cancel` if Page Down is recording or
+   `bin/ptt-dictation-small cancel` if Page Up is recording. Then stop
+   `bin/ptt-dictation worker-stop`, `bin/ptt-dictation-small worker-stop`, and
+   the optional `bin/ptt-dictation-moonshine worker-stop`.
 2. Remove both i3 binding blocks shown above and run `i3-msg reload`.
+   Also run `bin/ptt-dictation queue-stop` after current processing finishes;
+   queued audio remains until explicitly removed with the state directory.
 3. Remove the Kanata F13-F16 push-to-talk mappings.
 4. Remove generated data and the project:
 

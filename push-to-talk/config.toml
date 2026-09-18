@@ -10,6 +10,12 @@ vad_filter = true
 cpu_threads = 8
 num_workers = 1
 
+[queue]
+max_pending = 10
+max_storage_mb = 100
+max_recording_seconds = 300
+retention_hours = 24
+
 [worker]
 # Keep the exact same Whisper model resident between dictations. The worker is
 # launched on the first recording and direct transcription remains a fallback.
@@ -20,11 +26,23 @@ fallback_to_direct = true
 
 [recording]
 command = "pw-record"
+# Mark this as communications capture so WirePlumber automatically exposes a
+# connected Bluetooth headset microphone instead of leaving it in A2DP-only
+# playback mode.
+media_category = "Capture"
+media_role = "Communication"
 sample_rate = 16000
 channels = 1
 sample_format = "s16"
 minimum_seconds = 0.25
 stop_timeout_seconds = 5.0
+
+[recording.feedback]
+enabled = true
+interval_seconds = 0.75
+activity_threshold_dbfs = -45.0
+silence_warning_seconds = 3.0
+notification_expire_ms = 2200
 
 [paste]
 clipboard_command = "xclip"

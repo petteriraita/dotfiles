@@ -4,12 +4,14 @@
 from __future__ import annotations
 
 import argparse
+import array
 from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
 import logging
 from logging.handlers import RotatingFileHandler
+import math
 import os
 from pathlib import Path
 import re
@@ -167,7 +169,14 @@ def reap_component_log_sinks() -> int:
     return reaped
 
 
-def notify(config: dict, summary: str, body: str = "", urgency: str = "normal") -> None:
+def notify(
+    config: dict,
+    summary: str,
+    body: str = "",
+    urgency: str = "normal",
+    expire_ms: int | None = None,
+    transient: bool = False,
+) -> None:
     settings = config["notifications"]
     if not settings.get("enabled", True):
         return
@@ -177,9 +186,15 @@ def notify(config: dict, summary: str, body: str = "", urgency: str = "normal") 
         return
     if INSTANCE_NAME != "default":
         summary = f"{summary} [{INSTANCE_NAME}]"
+    command_line = [command, "--app-name", APP_NAME, "--urgency", urgency]
+    if expire_ms is not None:
+        command_line.extend(["--expire-time", str(max(1, expire_ms))])
+    if transient:
+        command_line.append("--transient")
+    command_line.extend([summary, body])
     try:
         result = run_quiet(
-            [command, "--app-name", APP_NAME, "--urgency", urgency, summary, body],
+            command_line,
             timeout=5,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
@@ -283,7 +298,10 @@ def write_state(state: dict) -> None:
 
 def safe_audio_path(value: str) -> Path:
     path = Path(value).resolve()
-    if RUNTIME_HOME.resolve() not in path.parents or path.suffix != ".wav":
+    if (
+        RUNTIME_HOME.resolve() not in path.parents
+        and (STATE_HOME / "queue").resolve() not in path.parents
+    ) or path.suffix != ".wav":
         raise RuntimeError(f"Refusing unsafe runtime audio path: {path}")
     return path
 
@@ -295,6 +313,295 @@ def remove_session_files(state: dict | None) -> None:
         except (OSError, RuntimeError) as exc:
             LOG.warning("Could not remove session audio: %s", exc)
     STATE_FILE.unlink(missing_ok=True)
+
+
+def recording_command(config: dict, audio_path: Path) -> list[str]:
+    """Build a PipeWire capture command with a role Bluetooth policy recognizes."""
+    recording = config["recording"]
+    return [
+        str(recording.get("command", "pw-record")),
+        "--media-category",
+        str(recording.get("media_category", "Capture")),
+        "--media-role",
+        str(recording.get("media_role", "Communication")),
+        "--rate",
+        str(recording.get("sample_rate", 16000)),
+        "--channels",
+        str(recording.get("channels", 1)),
+        "--format",
+        str(recording.get("sample_format", "s16")),
+        str(audio_path),
+    ]
+
+
+def pcm16_dbfs(data: bytes) -> float | None:
+    """Return RMS dBFS for little-endian signed 16-bit PCM."""
+    if len(data) < 2:
+        return None
+    data = data[: len(data) - (len(data) % 2)]
+    samples = array.array("h")
+    samples.frombytes(data)
+    if sys.byteorder != "little":
+        samples.byteswap()
+    if not samples:
+        return None
+    mean_square = sum(sample * sample for sample in samples) / len(samples)
+    rms = math.sqrt(mean_square)
+    return 20 * math.log10(max(rms / 32768.0, 1e-9))
+
+
+def recent_recording_dbfs(path: Path, window_bytes: int = 32000) -> float | None:
+    """Measure recent audio while pw-record is still appending to its WAV."""
+    try:
+        size = path.stat().st_size
+        if size <= 128:
+            return None
+        start = max(128, size - window_bytes)
+        start += start % 2
+        with path.open("rb") as handle:
+            handle.seek(start)
+            return pcm16_dbfs(handle.read(window_bytes))
+    except OSError:
+        return None
+
+
+def source_from_pipewire_dump(objects: list[dict], audio_path: Path) -> str | None:
+    """Trace a recorder stream upstream and name its physical microphone."""
+    nodes: dict[int, dict] = {}
+    incoming: dict[int, set[int]] = {}
+    recorder_ids: list[int] = []
+    for item in objects:
+        if item.get("type") == "PipeWire:Interface:Node":
+            node_id = item.get("id")
+            props = item.get("info", {}).get("props", {})
+            if isinstance(node_id, int):
+                nodes[node_id] = props
+                if props.get("media.filename") == str(audio_path):
+                    recorder_ids.append(node_id)
+        elif item.get("type") == "PipeWire:Interface:Link":
+            info = item.get("info", {})
+            input_id = info.get("input-node-id")
+            output_id = info.get("output-node-id")
+            if isinstance(input_id, int) and isinstance(output_id, int):
+                incoming.setdefault(input_id, set()).add(output_id)
+
+    visited: set[int] = set()
+    pending = list(recorder_ids)
+    candidates: list[tuple[int, str]] = []
+    while pending:
+        node_id = pending.pop()
+        if node_id in visited:
+            continue
+        visited.add(node_id)
+        props = nodes.get(node_id, {})
+        name = str(props.get("node.name", ""))
+        description = str(
+            props.get("node.description") or props.get("node.nick") or name
+        )
+        if name.startswith("bluez_input"):
+            candidates.append((3, description))
+        elif name.startswith("alsa_input"):
+            candidates.append((2, description))
+        elif props.get("media.class") == "Audio/Source":
+            candidates.append((1, description))
+        pending.extend(incoming.get(node_id, ()))
+    return max(candidates, default=(0, ""))[1] or None
+
+
+def recording_source(audio_path: Path) -> str:
+    if shutil.which("pw-dump"):
+        try:
+            result = run_quiet(["pw-dump"], timeout=2)
+            if result.returncode == 0:
+                source = source_from_pipewire_dump(
+                    json.loads(result.stdout), audio_path
+                )
+                if source:
+                    return source
+        except (OSError, subprocess.TimeoutExpired, json.JSONDecodeError):
+            pass
+    if shutil.which("pactl"):
+        try:
+            result = run_quiet(["pactl", "get-default-source"], timeout=2)
+            if result.returncode == 0 and result.stdout.strip():
+                return result.stdout.strip()
+        except (OSError, subprocess.TimeoutExpired):
+            pass
+    return "default microphone"
+
+
+def level_meter(dbfs: float | None) -> str:
+    if dbfs is None:
+        return "········"
+    bars = max(0, min(8, round((dbfs + 60) / 6)))
+    return "█" * bars + "·" * (8 - bars)
+
+
+def feedback_notify(
+    config: dict,
+    summary: str,
+    body: str,
+    notification_id: int | None = None,
+) -> int | None:
+    settings = config["notifications"]
+    command = settings.get("command", "notify-send")
+    if not settings.get("enabled", True) or not shutil.which(command):
+        return None
+    feedback = config["recording"].get("feedback", {})
+    command_line = [
+        command,
+        "--app-name",
+        APP_NAME,
+        "--urgency",
+        "normal",
+        "--transient",
+        "--expire-time",
+        str(int(feedback.get("notification_expire_ms", 2200))),
+        "--print-id",
+    ]
+    if notification_id is not None:
+        command_line.extend(["--replace-id", str(notification_id)])
+    if INSTANCE_NAME != "default":
+        summary = f"{summary} [{INSTANCE_NAME}]"
+    command_line.extend([summary, body])
+    try:
+        result = run_quiet(command_line, timeout=3)
+    except (OSError, subprocess.TimeoutExpired):
+        return notification_id
+    if result.returncode == 0 and result.stdout.strip().isdigit():
+        return int(result.stdout.strip())
+    return notification_id
+
+
+def close_feedback_notification(config: dict, notification_id: int | None) -> None:
+    if notification_id is None:
+        return
+    settings = config["notifications"]
+    command = settings.get("command", "notify-send")
+    if not shutil.which(command):
+        return
+    try:
+        run_quiet(
+            [
+                command,
+                "--app-name",
+                APP_NAME,
+                "--transient",
+                "--expire-time",
+                "1",
+                "--replace-id",
+                str(notification_id),
+                "Dictation",
+                "Recording stopped",
+            ],
+            timeout=2,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        pass
+
+
+def run_recording_monitor(config: dict, session_id: str) -> int:
+    """Keep a short-lived recording notification updated with a real level meter."""
+    feedback = config["recording"].get("feedback", {})
+    interval = max(0.25, float(feedback.get("interval_seconds", 0.75)))
+    threshold = float(feedback.get("activity_threshold_dbfs", -45.0))
+    warning_after = float(feedback.get("silence_warning_seconds", 3.0))
+    running = True
+
+    def request_stop(signum, frame) -> None:
+        nonlocal running
+        running = False
+
+    signal.signal(signal.SIGTERM, request_stop)
+    signal.signal(signal.SIGINT, request_stop)
+    notification_id = None
+    started = time.monotonic()
+    source = "detecting microphone…"
+    source_refresh = 0.0
+    signal_seen = False
+    audio_path = None
+    try:
+        while running:
+            state = read_state()
+            if (
+                not state
+                or state.get("session_id") != session_id
+                or state.get("phase") != "recording"
+            ):
+                break
+            audio_path = safe_audio_path(state["audio_path"])
+            elapsed = time.monotonic() - started
+            if elapsed >= float(
+                config.get("queue", {}).get("max_recording_seconds", 300)
+            ):
+                import dictation_queue
+
+                dictation_queue.control(config, "stop", expected_session=session_id)
+                notify(
+                    config,
+                    "Dictation limit reached",
+                    "Recording saved and queued (five-minute default limit)",
+                    expire_ms=5000,
+                )
+                break
+            if elapsed >= source_refresh:
+                source = recording_source(audio_path)
+                source_refresh = elapsed + 3.0
+            dbfs = recent_recording_dbfs(audio_path)
+            signal_seen |= dbfs is not None and dbfs >= threshold
+            if signal_seen:
+                status = "Voice signal detected"
+            elif elapsed >= warning_after:
+                status = "No voice detected — check the microphone"
+            else:
+                status = "Listening for voice…"
+            level = "waiting for audio" if dbfs is None else f"{dbfs:.0f} dBFS"
+            notification_id = feedback_notify(
+                config,
+                "Dictation: recording",
+                f"{status}  {level_meter(dbfs)}  {level}\nMic: {source}",
+                notification_id,
+            )
+            time.sleep(interval)
+        return 0
+    finally:
+        close_feedback_notification(config, notification_id)
+
+
+def start_recording_monitor(config: dict, state: dict) -> None:
+    # The monitor also enforces the recording duration limit.
+    with bounded_component_log(
+        STATE_HOME / instance_filename("monitor.log")
+    ) as monitor_log:
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                str(Path(__file__).resolve()),
+                "_monitor",
+                str(state["session_id"]),
+            ],
+            stdin=subprocess.DEVNULL,
+            stdout=monitor_log,
+            stderr=monitor_log,
+            start_new_session=True,
+        )
+    state["monitor_pid"] = process.pid
+    state["monitor_start_ticks"] = process_start_ticks(process.pid)
+    write_state(state)
+
+
+def stop_recording_monitor(state: dict) -> None:
+    pid = int(state.get("monitor_pid", 0))
+    ticks = state.get("monitor_start_ticks")
+    if not process_matches(pid, ticks):
+        return
+    try:
+        os.killpg(pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    deadline = time.monotonic() + 1.5
+    while time.monotonic() < deadline and process_matches(pid, ticks):
+        time.sleep(0.05)
 
 
 def active_window_id(config: dict) -> str | None:
@@ -530,17 +837,10 @@ def start_recording(config: dict) -> int:
             remove_session_files(existing)
 
         session_id = uuid.uuid4().hex
-        audio_path = RUNTIME_HOME / f"recording-{session_id}.wav"
-        command = [
-            recorder,
-            "--rate",
-            str(recording.get("sample_rate", 16000)),
-            "--channels",
-            str(recording.get("channels", 1)),
-            "--format",
-            str(recording.get("sample_format", "s16")),
-            str(audio_path),
-        ]
+        audio_dir = STATE_HOME / "queue"
+        audio_dir.mkdir(mode=0o700, parents=True, exist_ok=True)
+        audio_path = audio_dir / f"recording-{session_id}.wav"
+        command = recording_command(config, audio_path)
         with bounded_component_log(STATE_HOME / "recorder.log") as recorder_log:
             process = subprocess.Popen(
                 command,
@@ -548,6 +848,7 @@ def start_recording(config: dict) -> int:
                 stdout=subprocess.DEVNULL,
                 stderr=recorder_log,
                 start_new_session=True,
+                umask=0o077,
             )
 
         # Do not publish the session until pw-record has survived its startup
@@ -561,6 +862,8 @@ def start_recording(config: dict) -> int:
             raise RuntimeError(
                 f"{recorder} exited immediately; see {STATE_HOME / 'recorder.log'}"
             )
+        if audio_path.exists():
+            os.chmod(audio_path, 0o600)
 
         state = {
             "session_id": session_id,
@@ -575,15 +878,14 @@ def start_recording(config: dict) -> int:
             "started_at": time.time(),
         }
         write_state(state)
+        try:
+            start_recording_monitor(config, state)
+        except Exception as exc:
+            LOG.warning("Could not start recording feedback monitor: %s", exc)
+            notify(config, "Dictation: recording", "Release the shortcut to transcribe")
 
     LOG.info("Recording started: pid=%s session=%s", process.pid, session_id)
-    notify(config, "Dictation: recording", "Release the shortcut to transcribe")
-    try:
-        ensure_worker(config)
-    except Exception as exc:
-        # Recording remains usable: stop will retry the worker and ultimately
-        # fall back to direct in-process transcription.
-        LOG.warning("Could not warm Whisper worker during recording: %s", exc)
+    # Model loading belongs to the queue, never the keyboard control path.
     return 0
 
 
@@ -962,6 +1264,7 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
 
     audio_path = safe_audio_path(state["audio_path"])
     try:
+        stop_recording_monitor(state)
         terminate_recorder(
             state, float(config["recording"].get("stop_timeout_seconds", 5))
         )
@@ -984,7 +1287,18 @@ def finish_session(config: dict, no_paste: bool = False) -> int:
         )
         text, metadata = transcribe_audio(config, audio_path)
         if not text:
-            raise RuntimeError("Whisper returned an empty transcription")
+            LOG.warning(
+                "Whisper returned an empty transcription: recording_seconds=%.2f",
+                duration,
+            )
+            notify(
+                config,
+                "Dictation: no speech detected",
+                "No text was produced; check the microphone shown while recording",
+                expire_ms=5000,
+                transient=True,
+            )
+            return 0
         LOG.info("Transcription complete: chars=%s metadata=%s", len(text), metadata)
         if no_paste:
             print(text)
@@ -1046,6 +1360,7 @@ def cancel_session(config: dict) -> int:
         write_state(state)
 
     try:
+        stop_recording_monitor(state)
         terminate_recorder(
             state, float(config["recording"].get("stop_timeout_seconds", 5))
         )
@@ -1071,16 +1386,7 @@ def record_test(config: dict, seconds: float, keep: Path | None) -> int:
                 "Cannot run a microphone test while a dictation session exists"
             )
     test_path = RUNTIME_HOME / f"microphone-test-{uuid.uuid4().hex}.wav"
-    command = [
-        recorder,
-        "--rate",
-        str(recording.get("sample_rate", 16000)),
-        "--channels",
-        str(recording.get("channels", 1)),
-        "--format",
-        str(recording.get("sample_format", "s16")),
-        str(test_path),
-    ]
+    command = recording_command(config, test_path)
     process = subprocess.Popen(
         command,
         stdin=subprocess.DEVNULL,
@@ -1205,6 +1511,14 @@ def paste_test(config: dict, text: str, clipboard_only: bool) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     subparsers = parser.add_subparsers(dest="command", required=True)
+    subparsers.add_parser("queue-status", help="show saved dictation jobs")
+    subparsers.add_parser("queue-resume", help="resume pending dictation jobs")
+    subparsers.add_parser("queue-stop", help="stop the idle queue consumer")
+    for action in ("queue-retry", "queue-skip"):
+        item = subparsers.add_parser(
+            action, help="retry or skip a failed job; audio retained"
+        )
+        item.add_argument("job", help="job-...json filename shown by queue-status")
     subparsers.add_parser("start", help="start recording; duplicate starts are ignored")
     stop_parser = subparsers.add_parser("stop", help="stop, transcribe, and paste")
     stop_parser.add_argument(
@@ -1245,10 +1559,32 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    if len(sys.argv) > 1 and sys.argv[1] in ("_queue", "_queue-job"):
+        import dictation_queue
+
+        return dictation_queue.internal(sys.argv[1:])
     if len(sys.argv) > 1 and sys.argv[1] == "_worker":
         return run_worker(load_config())
+    if len(sys.argv) > 2 and sys.argv[1] == "_monitor":
+        return run_recording_monitor(load_config(), sys.argv[2])
     args = build_parser().parse_args()
     config = load_config()
+    if args.command in ("start", "stop", "toggle", "cancel") and not getattr(
+        args, "no_paste", False
+    ):
+        import dictation_queue
+
+        return dictation_queue.control(config, args.command)
+    if args.command in (
+        "queue-status",
+        "queue-resume",
+        "queue-retry",
+        "queue-skip",
+        "queue-stop",
+    ):
+        import dictation_queue
+
+        return dictation_queue.manage(args.command, getattr(args, "job", None))
     if args.command == "start":
         return start_recording(config)
     if args.command == "stop":

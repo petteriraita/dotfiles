@@ -3,6 +3,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from unittest import mock
 
 
 TEST_HOME = tempfile.TemporaryDirectory(prefix="ptt-dictation-tests-")
@@ -42,6 +43,110 @@ class TranscriptionMetricsTests(unittest.TestCase):
 
         self.assertEqual(metrics["words"], 0)
         self.assertEqual(metrics["words_per_minute"], 0)
+
+
+class RecordingFeedbackTests(unittest.TestCase):
+    def test_recorder_is_advertised_as_communications_capture(self):
+        command = PTT.recording_command(
+            PTT.load_config(), Path("/tmp/ptt-command-test.wav")
+        )
+
+        self.assertIn("--media-category", command)
+        self.assertEqual(command[command.index("--media-category") + 1], "Capture")
+        self.assertIn("--media-role", command)
+        self.assertEqual(command[command.index("--media-role") + 1], "Communication")
+
+    def test_pcm_level_distinguishes_silence_and_voice_level(self):
+        silence = PTT.pcm16_dbfs(b"\0\0" * 100)
+        samples = PTT.array.array("h", [16384] * 100)
+
+        self.assertLess(silence, -100)
+        self.assertAlmostEqual(PTT.pcm16_dbfs(samples.tobytes()), -6.02, places=1)
+        self.assertEqual(PTT.level_meter(-60), "········")
+        self.assertEqual(PTT.level_meter(-12), "████████")
+
+    def test_pipewire_graph_reports_physical_source_behind_effects(self):
+        audio_path = Path("/tmp/feedback.wav")
+        objects = [
+            {
+                "id": 10,
+                "type": "PipeWire:Interface:Node",
+                "info": {
+                    "props": {
+                        "node.name": "alsa_input.internal",
+                        "node.description": "Laptop Digital Microphone",
+                        "media.class": "Audio/Source",
+                    }
+                },
+            },
+            {
+                "id": 20,
+                "type": "PipeWire:Interface:Node",
+                "info": {
+                    "props": {
+                        "node.name": "easyeffects_source",
+                        "media.class": "Audio/Source",
+                    }
+                },
+            },
+            {
+                "id": 30,
+                "type": "PipeWire:Interface:Node",
+                "info": {
+                    "props": {
+                        "node.name": "pw-record",
+                        "media.filename": str(audio_path),
+                    }
+                },
+            },
+            {
+                "id": 40,
+                "type": "PipeWire:Interface:Link",
+                "info": {"output-node-id": 10, "input-node-id": 20},
+            },
+            {
+                "id": 41,
+                "type": "PipeWire:Interface:Link",
+                "info": {"output-node-id": 20, "input-node-id": 30},
+            },
+        ]
+
+        self.assertEqual(
+            PTT.source_from_pipewire_dump(objects, audio_path),
+            "Laptop Digital Microphone",
+        )
+
+    def test_empty_transcription_is_normal_transient_notification(self):
+        config = PTT.load_config()
+        audio_path = PTT.RUNTIME_HOME / "recording-empty-test.wav"
+        audio_path.touch()
+        PTT.write_state(
+            {
+                "session_id": "empty-test",
+                "instance": "default",
+                "phase": "recording",
+                "audio_path": str(audio_path),
+                "recorder_pid": 999999,
+            }
+        )
+        with (
+            mock.patch.object(PTT, "stop_recording_monitor"),
+            mock.patch.object(PTT, "terminate_recorder"),
+            mock.patch.object(PTT, "wav_duration", return_value=10.0),
+            mock.patch.object(PTT, "transcribe_audio", return_value=("", {})),
+            mock.patch.object(PTT, "notify") as notify,
+        ):
+            self.assertEqual(PTT.finish_session(config, no_paste=True), 0)
+
+        notify.assert_called_with(
+            config,
+            "Dictation: no speech detected",
+            "No text was produced; check the microphone shown while recording",
+            expire_ms=5000,
+            transient=True,
+        )
+        self.assertFalse(audio_path.exists())
+        self.assertIsNone(PTT.read_state())
 
 
 class InstanceIsolationTests(unittest.TestCase):
