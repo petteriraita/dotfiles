@@ -263,11 +263,11 @@ bindsym --whole-window button7 nop
 bindsym $mod+p exec --no-startup-id keepassxc
 
 ### toggle dictation: each Page Down press starts or stops large-v3-turbo
-set $ptt /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation
+set $ptt /home/pt/dev/personal/apps/push-to-talk/bin/ptt-dictation
 exec_always --no-startup-id $ptt worker-start
 bindcode 191 exec --no-startup-id $ptt toggle
 
 ### small.en A/B test: Kanata emits F15/F16 from physical Page Up
-set $ptt_small /home/pt/dev/dotfiles/push-to-talk/bin/ptt-dictation-small
+set $ptt_small /home/pt/dev/personal/apps/push-to-talk/bin/ptt-dictation-small
 bindcode 193 exec --no-startup-id $ptt_small start
 bindcode 194 exec --no-startup-id $ptt_small stop

@@ -9,6 +9,17 @@ export FCEDIT=nvim
 # pager behavior
 export LESS='-j4'
 
+# Workspace layout. Keep project paths derived from this small set of roots so
+# a future reorganization changes one place rather than many shell helpers.
+export DEV_ROOT="${DEV_ROOT:-$HOME/dev}"
+export DEV_CONFIG="${DEV_CONFIG:-$DEV_ROOT/config/dotfiles}"
+export DEV_PERSONAL="${DEV_PERSONAL:-$DEV_ROOT/personal}"
+export DEV_SCHOOL="${DEV_SCHOOL:-$DEV_ROOT/school}"
+export DEV_DTU_SPRING_2026="${DEV_DTU_SPRING_2026:-$DEV_SCHOOL/dtu/2026-spring}"
+export PTT_ROOT="${PTT_ROOT:-$DEV_PERSONAL/apps/push-to-talk}"
+export LATEX_TEMPLATES="${LATEX_TEMPLATES:-$DEV_PERSONAL/learning/latex-templates}"
+export OBSIDIAN_VAULT="${OBSIDIAN_VAULT:-$DEV_PERSONAL/knowledge/obsidian_vault}"
+
 ### add the paths as a set, such that zsh rc reloads dont add duplicate paths
 typeset -U path
 
@@ -80,7 +91,7 @@ ag() {
 }
 
 templ() {
-    cp -i "$HOME/dev/latex-templates/main.tex" "$1"
+    cp -i "$LATEX_TEMPLATES/main.tex" "$1"
     echo "created $1"
 }
 
@@ -149,7 +160,7 @@ cap() {
 }
 
 b() {
-    "$EDITOR" "/home/pt/dev/dotfiles/shell/common.sh" # Reload .bashrc to apply changes
+    "$EDITOR" "$DEV_CONFIG/shell/common.sh" # Reload .bashrc to apply changes
 }
 
 clip() {
@@ -268,7 +279,7 @@ alias calc='code /home/petteri/development_files/python_gre/calulator.ipynb'
 alias jpamb='code development_files/dtu/program_analysis/jpamb/'
 alias py='python3'
 alias ca='conda activate'
-alias thyconvert='/home/pt/dev/dtu_spring_2026/02256_Automated_Reasoning/converter.py'
+alias thyconvert="$DEV_DTU_SPRING_2026/02256_Automated_Reasoning/converter.py"
 
 ## GIT
 alias gs='git status'

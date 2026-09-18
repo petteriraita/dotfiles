@@ -10,7 +10,7 @@ Environment=KANATA_PORT=10000
 Environment=DEFAULT_LAYER=base
 Environment=GAME_LAYER=skyrim
 Environment=GAME_CLASS_REGEX=steam_proton
-ExecStart=%h/dev/dotfiles/bin/kanata-layer-watch.sh
+ExecStart=%h/dev/config/dotfiles/bin/kanata-layer-watch.sh
 Restart=always
 RestartSec=2
 
