@@ -5,7 +5,7 @@ description: Create or edit doctor, physiotherapy, surgery, and nursing visit re
 
 # Medical Visits
 
-Write records under `/home/pt/dev/obsidian_vault/2 - Areas/medical/conditions/hamstring2025/Visits`.
+Write records under `/home/pt/dev/personal/knowledge/obsidian_vault/2 - Areas/medical/conditions/hamstring2025/Visits`.
 
 The dashboard parser requires YAML frontmatter at byte zero. Never put a resume block, timestamp, heading, blank line, or byte-order mark before the opening `---`.
 
@@ -17,16 +17,16 @@ date: "YYYY-MM-DD"
 type: "physiotherapy"
 clinician: "Name"
 clinic: "Clinic"
-evidence: "patient_report"
 ---
 ```
 
 - Valid types: `doctor`, `physiotherapy`, `surgery`, `nursing`.
-- Valid evidence: `clinical_record`, `patient_report`, `mixed`, `translation`.
+- Keep frontmatter to `date`, `type`, `clinician`, and `clinic`. Describe whether information comes from the patient or a clinical record in the body when relevant; do not add an `evidence` property.
 - Leave an unknown value blank rather than guessing. The encounter date must come from evidence, not merely the filename or file timestamps.
 - Use `## Summary`, `## Date evidence`, `## Record`, and `## Source`. Keep Summary concise; preserve relevant detail and uncertainty in Record; link or identify the source precisely.
 - Distinguish the patient's report from a clinical record. Do not create diagnoses or treatment advice.
 - Match the filename `YYYY-MM-DD - type - clinician.md`; use `Undated` or `clinician unrecorded` when genuinely unknown.
+- Add the same DataviewJS previous/next visit buttons used in the surrounding visit notes immediately after frontmatter. They navigate all visit types in chronological filename order.
 
 After every write, run:
 
@@ -34,4 +34,4 @@ After every write, run:
 python /home/pt/.codex/skills/medical-visits/scripts/validate_visit.py --dashboard "/absolute/path/to/visit.md"
 ```
 
-Success requires both local schema validation and the corresponding `sourcePath` from `http://127.0.0.1:4173/api/visits`. If the dashboard is not running, start `/home/pt/dev/health-stats-dashboard` with `npm start`, then rerun validation. Do not report completion when the API does not contain the record.
+Success requires both local schema validation and the corresponding `sourcePath` from `http://127.0.0.1:4173/api/visits`. If the dashboard is not running, start `/home/pt/dev/personal/apps/health/health-stats-dashboard` with `npm start`, then rerun validation. Do not report completion when the API does not contain the record.

@@ -37,8 +37,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
 
 (deffakekeys
   ptt-start f13
-  ptt-small-start f15
-  ptt-small-stop  f16
+  ptt-parakeet f15
 )
 
 
@@ -49,11 +48,8 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
   ;; large-v3-turbo recorder: first press starts, second press stops.
   ptt (on-press-fakekey ptt-start tap)
 
-  ;; Physical Page Up is an isolated faster-whisper small.en experiment.
-  ptt-small (multi
-        (on-press-fakekey ptt-small-start tap)
-        (on-release-fakekey ptt-small-stop tap)
-      )
+  ;; Physical Page Up toggles the Parakeet recorder on each press.
+  ptt-parakeet (on-press-fakekey ptt-parakeet tap)
 
   ;; Main mod-tap: Nav layer when held, Space when tapped.
   nav (tap-hold $tap_timeout $long_hold_timeout spc (layer-while-held navigation))
@@ -182,7 +178,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
-                       @lalt          @nav            @ralt          @ptt-small @ptt
+                       @lalt          @nav            @ralt          @ptt-parakeet @ptt
 )
 
 ;; Keep the base layout in Sioyek, but make j a plain repeatable key for scrolling.
@@ -191,7 +187,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      j      @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
-                       @lalt          @nav            @ralt          @ptt-small @ptt
+                       @lalt          @nav            @ralt          @ptt-parakeet @ptt
 )
 
 ;; Base behavior except Ctrl+W becomes Ctrl+Backspace in Brave.
@@ -200,7 +196,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      @brave-w e      r      t           y      u      i      o      @p
    @caps  @a     @s     @d     @f     g           h      @j     @k     @l     @semi
           @z     @x     @c     @v     @b          @n     @m     @comma @dot   /
-                       @lalt          @nav            @ralt          @ptt-small @ptt
+                       @lalt          @nav            @ralt          @ptt-parakeet @ptt
 )
 
 ;; Plain layer for games that should not see tap-hold or home-row mods.
@@ -209,7 +205,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           q      w      e      r      t           y      u      i      o      p
    @caps  a      s      d      f      g           h      j      k      l      @semi
           z      x      c      v      b           n      m      ,      .      /
-                       lalt          spc          ralt          @ptt-small @ptt
+                       lalt          spc          ralt          @ptt-parakeet @ptt
 )
 
 ;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
@@ -218,7 +214,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           XX     XX     XX     XX     XX          home   pgdn   pgup   end    _
    _      @all   @cpy   @pst   _      XX          lft    down   up     rght   XX
           @ndo   XX     _      XX     XX          XX     XX     XX     XX     XX
-                       _            _             _             @ptt-small @ptt
+                       _            _             _             @ptt-parakeet @ptt
 )
 ;; 10, 10, 10 +1, 10, 3 + 1 ==> 45
 (deflayer numpad
@@ -226,7 +222,7 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
           XX   XX   XX   XX   XX        XX    1    2    3   XX
    XX     XX   XX   XX   XX   XX        del   4    5    6   0
           XX   XX   XX   XX   XX        XX    7    8    9   XX
-               XX          XX           XX          @ptt-small @ptt
+               XX          XX           XX          @ptt-parakeet @ptt
 )
 
 
@@ -236,5 +232,5 @@ right-hand-keys-no-mods ( y u i o h k l n m . / )
          @^    @<    @>    @$    @%          @@    @&    @*    @'    @`
     _    @{    @pl   @pr   @}    @=          @\    @+    @-    @/    @''
          @~    @[    @]    @_    @#          @|    @!    @;    @:    @?
-                _            spc             _             @ptt-small @ptt
+                _            spc             _             @ptt-parakeet @ptt
 )

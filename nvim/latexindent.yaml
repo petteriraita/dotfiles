@@ -1,0 +1,82 @@
+lookForAlignDelims:
+  "tabular":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "tabularx":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "longtable":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "tabu":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "array":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "matrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "listabla":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "align":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "align*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "alignat":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "alignat*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "aligned":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "bmatrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "Bmatrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "cases":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "flalign":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "flalign*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "pmatrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "vmatrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "Vmatrix":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "cases*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "dcases":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "dcases*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "rcases":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "rcases*":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "drcases":
+    delims: 1
+    alignDoubleBackSlash: 0
+  "drcases*":
+    delims: 1
+    alignDoubleBackSlash: 0

@@ -2,7 +2,7 @@
 Description=Battery Watcher
 
 [Service]
-ExecStart=/home/pt/.local/bin/battery-watch.sh
+ExecStart=%h/.local/bin/battery-watch.sh
 Restart=always
 
 [Install]

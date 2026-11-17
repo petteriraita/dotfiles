@@ -1,0 +1,11 @@
+[Unit]
+Description=Local browser access to the phone's Physio Log
+StartLimitIntervalSec=0
+
+[Service]
+ExecStart=/usr/bin/ssh -F %h/.ssh/config -NT -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=10 -o ExitOnForwardFailure=yes -o ServerAliveInterval=15 -o ServerAliveCountMax=3 -L 127.0.0.1:18766:127.0.0.1:8766 android-phone
+Restart=always
+RestartSec=15
+
+[Install]
+WantedBy=default.target

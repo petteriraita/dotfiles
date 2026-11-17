@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+[[ "$(uname -r)" == 7.2.11-100.fc43.x86_64 ]] || {
+    echo 'First reboot into the installed Fedora 7.2.11 kernel.'
+    exit 1
+}
+echo 'This test will put the laptop to sleep once for about 20 seconds.'
+echo 'Save your work first. A repeat of the bug could require a forced restart.'
+read -r -p 'Type TEST when ready, or press Enter to cancel: ' answer
+[[ "$answer" == TEST ]] || exit 0
+report_dir="$HOME/.local/state/suspend-diagnostics/$(date +%Y-%m-%dT%H-%M-%S%z)-test"
+mkdir -p "$report_dir"
+printf '%s\n' "$report_dir" > "$HOME/.local/state/suspend-diagnostics/latest-test"
+exec > >(tee "$report_dir/test.log") 2>&1
+echo "Report folder: $report_dir"
+sudo /bin/bash /home/pt/dev/config/dotfiles/bin/test-amd-sleep-root "$report_dir"
+touch "$report_dir/completed"
+echo "Test finished. Results: $report_dir"

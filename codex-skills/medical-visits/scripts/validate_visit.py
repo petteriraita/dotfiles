@@ -9,11 +9,10 @@ from datetime import date
 from pathlib import Path
 from urllib.request import urlopen
 
-VAULT = Path("/home/pt/dev/obsidian_vault")
+VAULT = Path("/home/pt/dev/personal/knowledge/obsidian_vault")
 VISITS = VAULT / "2 - Areas/medical/conditions/hamstring2025/Visits"
-FIELDS = ("date", "type", "clinician", "clinic", "evidence")
+FIELDS = ("date", "type", "clinician", "clinic")
 TYPES = {"doctor", "physiotherapy", "surgery", "nursing"}
-EVIDENCE = {"clinical_record", "patient_report", "mixed", "translation"}
 
 
 def fail(message: str) -> None:
@@ -60,8 +59,6 @@ def validate(path: Path) -> str:
         fail(f"frontmatter fields must be exactly, in order: {', '.join(FIELDS)}")
     if values["type"] not in TYPES:
         fail(f"invalid type: {values['type']!r}")
-    if values["evidence"] not in EVIDENCE:
-        fail(f"invalid evidence: {values['evidence']!r}")
 
     visit_date = values["date"]
     if visit_date:
@@ -71,16 +68,16 @@ def validate(path: Path) -> str:
             date.fromisoformat(visit_date)
         except ValueError as error:
             fail(f"invalid date: {visit_date!r} ({error})")
+    name_date = visit_date or r"(?:Undated|\d{4}-\d{2}-\d{2})"
     expected_name = (
-        f"{visit_date or 'Undated'} - {values['type']} - "
-        f"{values['clinician'] or 'clinician unrecorded'}.md"
+        rf"{name_date} - {re.escape(values['type'])} - "
+        rf"{re.escape(values['clinician'] or 'clinician unrecorded')}\.md"
     )
-    if path.name != expected_name:
-        fail(f"filename must be {expected_name!r}")
+    if not re.fullmatch(expected_name, path.name):
+        fail(f"filename does not match visit date, type, and clinician: {path.name!r}")
 
-    for name in ("Summary", "Date evidence", "Source"):
-        if not section(markdown, name):
-            fail(f"missing or empty ## {name} section")
+    if not section(markdown, "Summary"):
+        fail("missing or empty ## Summary section")
     return path.relative_to(VAULT).as_posix()
 
 

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Socratic Programming"
+  short_description: "Teach programming through adaptive Socratic guidance"

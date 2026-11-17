@@ -1,0 +1,4 @@
+interface:
+  display_name: "Email Sending"
+  short_description: "Draft concise personal emails in Petteri’s voice"
+  default_prompt: "Use $email-sending to draft a concise email for me."

@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Opt-in recipe for this ThinkPad; does not install kernels or initiate sleep.
+set -euo pipefail
+source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+revision=d617b15d77132acccd33801810436f624d96ed40
+checkout="$HOME/.local/share/amd-debug-tools"
+env_dir="$checkout/.venv-system"
+unit_source="$source_dir/systemd/system/suspend-pm-timing.service"
+unit_live=/etc/systemd/system/suspend-pm-timing.service
+hook=/usr/lib/systemd/system-sleep/s2idle-hook
+
+[[ "$HOME" == /home/pt && "$source_dir" == /home/pt/dev/config/dotfiles ]] || {
+    echo 'Pending: sleep helper paths require /home/pt/dev/config/dotfiles; adapt them for this account.' >&2
+    exit 1
+}
+[[ "$(cat /sys/class/dmi/id/product_name 2>/dev/null || true)" == 21QR003WMX ]] || {
+    echo 'Pending: AMD sleep diagnostics are restricted to ThinkPad 21QR003WMX.' >&2
+    exit 1
+}
+if [[ "${1:-}" == --check ]]; then
+    [[ -x "$env_dir/bin/amd-s2idle" && -x "$hook" && -f "$unit_live" ]] || exit 1
+    [[ "$(git -C "$checkout" rev-parse HEAD)" == "$revision" ]] || exit 1
+    cmp -s "$unit_source" "$unit_live" || exit 1
+    systemctl is-enabled --quiet suspend-pm-timing.service || exit 1
+    systemctl is-active --quiet suspend-pm-timing.service || exit 1
+    rpm -q acpica-tools ethtool v4l-utils >/dev/null || exit 1
+    command -v edid-decode >/dev/null || exit 1
+    echo 'AMD sleep diagnostics are installed and enabled.'
+    exit 0
+fi
+[[ $# -eq 0 ]] || exit 2
+if [[ ! -e "$checkout" ]]; then
+    mkdir -p "$(dirname "$checkout")"
+    git clone https://git.kernel.org/pub/scm/linux/kernel/git/superm1/amd-debug-tools.git "$checkout"
+    git -C "$checkout" checkout --detach "$revision"
+elif [[ ! -d "$checkout/.git" || "$(git -C "$checkout" rev-parse HEAD)" != "$revision" ]]; then
+    echo "Existing AMD tools checkout differs; preserving $checkout." >&2
+    exit 1
+fi
+if [[ ! -x "$env_dir/bin/amd-s2idle" ]]; then
+    /usr/bin/python3 -m venv --system-site-packages "$env_dir"
+    "$env_dir/bin/python" -m pip install "$checkout"
+fi
+sudo dnf install -y acpica-tools ethtool v4l-utils
+if [[ -e "$hook" ]]; then
+    if ! rg -Fq "$env_dir/lib" "$hook"; then
+        echo "Existing hook $hook differs; inspect it before replacing it." >&2
+        exit 1
+    fi
+else
+    sudo "$env_dir/bin/python" -c 'from amd_debug.s2idle import install; install(False)'
+fi
+if [[ -e "$unit_live" ]] && ! cmp -s "$unit_source" "$unit_live"; then
+    echo "Existing unit $unit_live differs; preserving it." >&2
+    exit 1
+fi
+sudo install -m 0644 "$unit_source" "$unit_live"
+sudo systemctl daemon-reload
+sudo systemctl enable --now suspend-pm-timing.service
+"$0" --check

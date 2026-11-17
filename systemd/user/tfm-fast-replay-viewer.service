@@ -1,0 +1,13 @@
+[Unit]
+Description=Local Terraforming Mars replay viewer
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pt/dev/personal/apps/terraforming-mars/fast-replay-viewer
+ExecStart=/usr/bin/python3 /home/pt/dev/personal/apps/terraforming-mars/fast-replay-viewer/server.py --host 127.0.0.1 --port 18765
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=default.target

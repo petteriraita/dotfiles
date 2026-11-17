@@ -1,0 +1,49 @@
+#!/data/data/com.termux/files/usr/bin/sh
+set -eu
+
+# Run once inside Termux. Runit then restarts sshd and Physio Log if either exits.
+termux_prefix=${PREFIX:-/data/data/com.termux/files/usr}
+termux_home=${HOME:-/data/data/com.termux/files/home}
+app_dir="$termux_home/physio-log"
+service_dir="$termux_prefix/var/service"
+
+test -f "$app_dir/server.py" || { echo "Physio Log is missing from $app_dir" >&2; exit 1; }
+if ! command -v sv >/dev/null 2>&1; then
+  pkg install -y termux-services
+fi
+test -x "$service_dir/sshd/run" || { echo "The Termux sshd service is missing" >&2; exit 1; }
+
+mkdir -p "$service_dir/physio-log/log" "$termux_home/.termux/boot" "$app_dir/backups/service-migration"
+cat > "$service_dir/physio-log/run" <<EOF
+#!$termux_prefix/bin/sh
+cd "$app_dir"
+exec "$termux_prefix/bin/python3" "$app_dir/server.py"
+EOF
+chmod 700 "$service_dir/physio-log/run"
+if test -x "$termux_prefix/share/termux-services/svlogger"; then
+  ln -sf "$termux_prefix/share/termux-services/svlogger" "$service_dir/physio-log/log/run"
+fi
+
+cat > "$termux_home/.termux/boot/start-services" <<EOF
+#!$termux_prefix/bin/sh
+termux-wake-lock
+. "$termux_prefix/etc/profile.d/start-services.sh"
+EOF
+chmod 700 "$termux_home/.termux/boot/start-services"
+
+. "$termux_prefix/etc/profile.d/start-services.sh"
+export SVDIR="$service_dir"
+attempt=0
+while ! test -e "$service_dir/sshd/supervise/ok" && test "$attempt" -lt 10; do
+  sleep 1
+  attempt=$((attempt + 1))
+done
+test -e "$service_dir/sshd/supervise/ok" || { echo "Service supervisor did not start" >&2; exit 1; }
+sv-enable sshd
+sv-enable physio-log
+for old_script in start-physio start-sshd; do
+  if test -f "$termux_home/.termux/boot/$old_script"; then
+    mv "$termux_home/.termux/boot/$old_script" "$app_dir/backups/service-migration/$old_script"
+  fi
+done
+echo "Services enabled. Stop any old standalone sshd/server.py processes once runsvdir is running, then verify sv status sshd physio-log."

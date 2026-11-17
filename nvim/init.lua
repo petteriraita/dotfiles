@@ -120,11 +120,44 @@ vim.o.showmode = false
 --  Schedule the setting after `UiEnter` because it can increase startup-time.
 --  Remove this option if you want your OS clipboard to remain independent.
 --  See `:help 'clipboard'`
+-- SSH has no access to the laptop's X11 clipboard. Send yanks through OSC 52;
+-- use the last copied value for editor puts rather than querying the terminal.
+if vim.env.SSH_CONNECTION or vim.env.SSH_TTY then
+  local osc52 = require 'vim.ui.clipboard.osc52'
+  local last_copy = { {}, 'v' }
+  local function remote_copy(register)
+    local send = osc52.copy(register)
+    return function(lines, regtype)
+      last_copy = { vim.deepcopy(lines), regtype }
+      if (vim.env.TERM or ''):match '^tmux' or (vim.env.TERM or ''):match '^screen' then
+        -- Local tmux accepts explicit passthrough while set-clipboard=external.
+        local sequence = '\027]52;' .. (register == '+' and 'c' or 'p') .. ';'
+          .. vim.base64.encode(table.concat(lines, '\n')) .. '\027\\'
+        vim.api.nvim_chan_send(2, '\027Ptmux;' .. sequence:gsub('\027', '\027\027') .. '\027\\')
+      else
+        send(lines, regtype)
+      end
+    end
+  end
+  local function remote_paste()
+    return last_copy
+  end
+  vim.g.clipboard = {
+    name = 'SSH terminal clipboard (OSC 52)',
+    copy = { ['+'] = remote_copy '+', ['*'] = remote_copy '*' },
+    paste = { ['+'] = remote_paste, ['*'] = remote_paste },
+    cache_enabled = 0,
+  }
+end
 vim.schedule(function()
   vim.o.clipboard = 'unnamedplus'
 end)
 
--- Enable break indent
+-- Wrap long lines at whitespace so words stay together when possible.
+vim.o.wrap = true
+vim.opt.diffopt:append 'followwrap'
+vim.o.linebreak = true
+vim.o.breakat = " \t"
 vim.o.breakindent = true
 
 -- Save undo history
@@ -283,7 +316,60 @@ local function evaluate_jupytext_cell()
   vim.fn.MoltenEvaluateRange(first_line, last_line)
 end
 
+local function evaluate_jupytext_notebook()
+  local kernels = vim.fn.MoltenRunningKernels(true)
+  if #kernels == 0 then
+    vim.notify('No kernel attached to this buffer. Finish selecting a kernel with <leader>ji, then run all cells', vim.log.levels.WARN)
+    return
+  end
+
+  local bufnr = vim.api.nvim_get_current_buf()
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local markers = {}
+  for line_number, line in ipairs(lines) do
+    if line:match '^# %%%%.*' then
+      table.insert(markers, { line = line_number, markdown = line:match '%[markdown%]' ~= nil })
+    end
+  end
+
+  if #markers == 0 then
+    vim.notify('No # %% Jupytext cells found', vim.log.levels.WARN)
+    return
+  end
+
+  local function run_all(kernel)
+    local count = 0
+    for index, marker in ipairs(markers) do
+      local first_line = marker.line + 1
+      local last_line = markers[index + 1] and markers[index + 1].line - 1 or #lines
+      if not marker.markdown and first_line <= last_line then
+        vim.fn.MoltenEvaluateRange(kernel, first_line, last_line)
+        count = count + 1
+      end
+    end
+    vim.notify(('Queued %d code cells on %s'):format(count, kernel))
+  end
+
+  if #kernels == 1 then
+    run_all(kernels[1])
+  else
+    vim.ui.select(kernels, { prompt = 'Select kernel for all cells:' }, function(kernel)
+      if kernel and vim.api.nvim_buf_is_valid(bufnr) then
+        vim.api.nvim_buf_call(bufnr, function()
+          run_all(kernel)
+        end)
+      end
+    end)
+  end
+end
+
 local function init_molten_for_active_python()
+  local kernels = vim.fn.MoltenRunningKernels(true)
+  if #kernels > 0 then
+    vim.notify(('Kernel already attached to this buffer: %s'):format(table.concat(kernels, ', ')))
+    return
+  end
+
   local environment = vim.env.VIRTUAL_ENV or vim.env.CONDA_PREFIX
   if environment then
     local kernel = vim.fs.basename(environment)
@@ -307,6 +393,7 @@ end
 
 vim.keymap.set('n', '<leader>ji', init_molten_for_active_python, { silent = true, desc = '[J]upyter init active Python environment' })
 vim.keymap.set('n', '<leader>jc', evaluate_jupytext_cell, { silent = true, desc = '[J]upyter run current [c]ell' })
+vim.keymap.set('n', '<leader>ja', evaluate_jupytext_notebook, { silent = true, desc = '[J]upyter run [a]ll code cells' })
 vim.keymap.set('n', '<leader>je', '<cmd>MoltenEvaluateOperator<CR>', { silent = true, desc = '[J]upyter [e]valuate motion' })
 vim.keymap.set('n', '<leader>jl', '<cmd>MoltenEvaluateLine<CR>', { silent = true, desc = '[J]upyter run [l]ine' })
 vim.keymap.set('x', '<leader>jv', ':<C-u>MoltenEvaluateVisual<CR>gv', { silent = true, desc = '[J]upyter run [v]isual selection' })
@@ -338,6 +425,9 @@ vim.keymap.set('n', '<C-k>', '<C-w><C-k>', { desc = 'Move focus to the upper win
 
 vim.keymap.set('n', '<F5>', function()
   require('dap').continue()
+end)
+vim.keymap.set('n', '<F6>', function()
+  require('dap').terminate()
 end)
 vim.keymap.set('n', '<F10>', function()
   require('dap').step_over()
@@ -520,12 +610,14 @@ vim.filetype.add {
     thy = 'isabelle',
   },
 }
--- add the file type tex, and make it so that wrapping is word, not byte based
 vim.api.nvim_create_autocmd('FileType', {
   pattern = 'tex',
   callback = function(event)
-    vim.opt_local.wrap = true
-    vim.opt_local.linebreak = true
+    -- Let VimTeX handle the math text object for every operator and visual selection.
+    local mini_config = vim.b[event.buf].miniai_config or {}
+    mini_config.custom_textobjects = mini_config.custom_textobjects or {}
+    mini_config.custom_textobjects['$'] = false
+    vim.b[event.buf].miniai_config = mini_config
 
     local function visual_bounds()
       local anchor = vim.fn.getpos 'v'
@@ -578,6 +670,33 @@ vim.api.nvim_create_autocmd('FileType', {
       end, true)
     end, { buffer = event.buf, silent = true, desc = 'Wrap selection in a TeX fraction' })
 
+    vim.keymap.set('x', '<leader>bp', function()
+      replace_visual(function(selected, start_pos)
+        selected[1] = '\\bigl(' .. selected[1]
+        selected[#selected] = selected[#selected] .. '\\bigr)'
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected]
+      end)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in TeX big parentheses' })
+
+    vim.keymap.set('x', '<leader>bb', function()
+      replace_visual(function(selected, start_pos)
+        selected[1] = '\\bigl\\{' .. selected[1]
+        selected[#selected] = selected[#selected] .. '\\bigr\\}'
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected]
+      end)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in TeX big braces' })
+
+    vim.keymap.set('x', '<leader>bs', function()
+      replace_visual(function(selected, start_pos)
+        selected[1] = '\\bigl[' .. selected[1]
+        selected[#selected] = selected[#selected] .. '\\bigr]'
+        local cursor_row = start_pos[1] + #selected - 1
+        return selected, cursor_row, #selected[#selected]
+      end)
+    end, { buffer = event.buf, silent = true, desc = 'Wrap selection in TeX big brackets' })
+
     vim.keymap.set('x', 'mk', function()
       replace_visual(function(selected, start_pos)
         selected[1] = '\\( ' .. selected[1]
@@ -600,6 +719,8 @@ vim.api.nvim_create_autocmd('FileType', {
     end, { buffer = event.buf, silent = true, desc = 'Wrap selection in display TeX math' })
   end,
 })
+
+require 'custom.literal_substitute'
 
 -- Petteri add the way to fomrat leetcode problems
 vim.api.nvim_create_user_command('Leetformat', function(opts)
@@ -676,7 +797,8 @@ require('lazy').setup({
       max_height = 20,
       max_height_window_percentage = math.huge,
       max_width_window_percentage = math.huge,
-      window_overlap_clear_enabled = true,
+      window_overlap_clear_enabled = false,
+      tmux_show_only_in_active_window = true,
       window_overlap_clear_ft_ignore = { 'cmp_menu', 'cmp_docs', '' },
 
       rocks = {
@@ -934,13 +1056,14 @@ require('lazy').setup({
         styles = 1,
       }
       vim.opt.conceallevel = 2
-      -- Zathura viewer
+      -- Use Sioyek for live PDF updates while editing TeX.
       vim.g.vimtex_view_method = 'sioyek'
-      -- Keep VimTeX on latexmk (default), but make sure SyncTeX is on:
+      -- Check saved files every 0.1s in latexmk's continuous mode (default: 2s).
+      -- Keep pdfLaTeX for ordinary documents and SyncTeX for forward search.
       vim.g.vimtex_compiler_latexmk = {
         options = {
-          '-lualatex',
           '-pdf',
+          "-e '$sleep_time = 0.1'",
           '-interaction=nonstopmode',
           '-synctex=1',
           '-file-line-error',
@@ -1000,9 +1123,11 @@ require('lazy').setup({
     dependencies = { '3rd/image.nvim' },
     init = function()
       vim.g.molten_auto_open_output = false
+      vim.g.molten_open_cmd = '/home/pt/.local/bin/brave-vimium-start'
       vim.g.molten_image_provider = 'image.nvim'
-      vim.g.molten_image_location = 'virt'
-      vim.g.molten_output_win_max_height = 20
+      vim.g.molten_image_location = 'float'
+      vim.g.molten_output_win_max_height = 40
+      vim.g.molten_output_win_cover_gutter = false
       vim.g.molten_output_show_more = true
       vim.g.molten_virt_text_output = true
       vim.g.molten_wrap_output = true
@@ -1014,6 +1139,9 @@ require('lazy').setup({
     opts = {
       style = 'hydrogen',
       output_extension = 'auto',
+      custom_language_formatting = {
+        python = { extension = 'py', style = 'hydrogen' },
+      },
     },
   },
   -- Petteri, add the isabelle conceal plugin
@@ -1505,9 +1633,23 @@ require('lazy').setup({
         --
 
         lua_ls = {
-          -- cmd = { ... },
-          -- filetypes = { ... },
-          -- capabilities = {},
+          root_dir = function(bufnr, on_dir)
+            local filename = vim.api.nvim_buf_get_name(bufnr)
+            local root = vim.fs.root(filename, {
+              '.emmyrc.json', '.luarc.json', '.luarc.jsonc',
+              '.luacheckrc', '.stylua.toml', 'stylua.toml',
+              'selene.toml', 'selene.yml', '.git',
+            })
+            -- A stray Lua file may find ~/.git even though home is not a project.
+            -- Keep such files in their own directory instead of scanning all of ~.
+            if root == vim.env.HOME then
+              root = nil
+            end
+            local directory = vim.fs.dirname(filename)
+            if root or directory ~= vim.env.HOME then
+              on_dir(root or directory)
+            end
+          end,
           settings = {
             Lua = {
               completion = {
@@ -1520,8 +1662,12 @@ require('lazy').setup({
         },
         --- this is supposed to be the texlab but with LSP only
         texlab = {
+          flags = {
+            allow_incremental_sync = false,
+          },
           settings = {
             texlab = {
+              latexindent = { ['local'] = vim.fn.stdpath 'config' .. '/latexindent.yaml' },
               build = {
                 onSave = false,
                 forwardSearchAfter = false,
@@ -1552,7 +1698,9 @@ require('lazy').setup({
 
       -- mason-lspconfig can auto-enable installed servers before its legacy
       -- handler runs. Register this environment-sensitive override first.
+      vim.lsp.config('lua_ls', servers.lua_ls)
       vim.lsp.config('pyright', servers.pyright)
+      vim.lsp.config('texlab', servers.texlab)
 
       -- Ensure the servers and tools above are installed
       --
@@ -1705,6 +1853,7 @@ require('lazy').setup({
 
           require('luasnip.loaders.from_lua').lazy_load {
             paths = { vim.fn.stdpath 'config' .. '/lua/snippets' },
+            fs_event_providers = { autocmd = true, libuv = true },
           }
         end,
       },
@@ -1939,6 +2088,7 @@ require('lazy').setup({
     },
   },
 })
+require('custom.python_debug_reload').enable()
 -- end of the plugins
 -- Petteri Hide Isabelle OUTPUT/PROGRESS panes when entering isabelle thy file
 vim.api.nvim_create_autocmd('BufWinEnter', {

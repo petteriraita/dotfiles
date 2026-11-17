@@ -9,7 +9,7 @@ Write useful memory aids, not polished documentation.
 
 ## Vault
 
-The vault's absolute path is `/home/pt/dev/obsidian_vault`.
+The vault's absolute path is `/home/pt/dev/personal/knowledge/obsidian_vault`.
 
 Before creating a note, search filenames and content for an existing note on the same topic. Update the existing note when it is the natural home; otherwise create a plainly named `.md` file in the vault root unless the user specifies a folder. Do not reorganize other notes.
 

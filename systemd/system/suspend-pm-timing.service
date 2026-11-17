@@ -1,0 +1,12 @@
+[Unit]
+Description=Log kernel device suspend and resume timings
+ConditionPathExists=/sys/power/pm_print_times
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'echo 1 > /sys/power/pm_print_times'
+ExecStop=/bin/sh -c 'echo 0 > /sys/power/pm_print_times'
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

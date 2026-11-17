@@ -1,0 +1,4 @@
+interface:
+  display_name: "Background"
+  short_description: "Build memorable course background chapters"
+  default_prompt: "Use $background to teach me the background concepts for this question without solving it."

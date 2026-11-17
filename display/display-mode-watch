@@ -9,6 +9,8 @@ SUSPEND_FLAG_FILE="${SUSPEND_FLAG_FILE:-/tmp/display_suspend_in_progress}"
 STATE_FILE="${STATE_FILE:-/tmp/display_state}"
 STARTUP_RETRY_COUNT="${STARTUP_RETRY_COUNT:-20}"
 STARTUP_RETRY_DELAY="${STARTUP_RETRY_DELAY:-1}"
+# Keep XRandR work out of the unstable DRM window immediately after resume.
+RESUME_SETTLE_SECONDS="${RESUME_SETTLE_SECONDS:-30}"
 
 find_lid_device() {
     local name_file=""
@@ -61,8 +63,8 @@ main() {
                         break
                     fi
                     if [[ "$state_line" == *"boolean false"* ]]; then
+                        sleep "$RESUME_SETTLE_SECONDS"
                         rm -f "$SUSPEND_FLAG_FILE"
-                        sleep 1
                         "$POSTSWITCH_BIN" || true
                         break
                     fi

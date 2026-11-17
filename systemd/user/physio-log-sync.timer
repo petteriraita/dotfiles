@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep laptop and phone Physio Log records synchronized
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Persistent=true
+Unit=physio-log-sync.service
+
+[Install]
+WantedBy=timers.target
+

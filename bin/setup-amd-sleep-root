@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Installs diagnostics and one newer kernel; never suspends or reboots.
+set -euo pipefail
+[[ $EUID -eq 0 ]] || { echo 'Run through setup-amd-sleep.'; exit 1; }
+tool_env=/home/pt/.local/share/amd-debug-tools/.venv-system
+unit_source=/home/pt/dev/config/dotfiles/systemd/system/suspend-pm-timing.service
+unit_live=/etc/systemd/system/suspend-pm-timing.service
+
+# Refuse to overwrite a different unit or an unrelated sleep hook.
+if [[ -e "$unit_live" ]] && ! cmp -s "$unit_source" "$unit_live"; then
+    echo "Existing $unit_live differs; stopping."
+    exit 1
+fi
+if [[ -e /usr/lib/systemd/system-sleep/s2idle-hook ]]; then
+    echo 'An s2idle-hook already exists; inspect it before replacing it.'
+    exit 1
+fi
+
+echo 'Installing the ACPI decoding dependency.'
+dnf install -y acpica-tools
+echo 'Installing the upstream AMD pre/post sleep diagnostic hook.'
+# This upstream revision's CLI incorrectly returns 1 after a successful install;
+# call its install function directly so real installation failures still fail.
+"$tool_env/bin/python" -c 'from amd_debug.s2idle import install; install(False)'
+
+echo 'Enabling device callback timing messages.'
+systemd-analyze verify "$unit_source"
+install -m 0644 "$unit_source" "$unit_live"
+systemctl daemon-reload
+systemctl enable --now suspend-pm-timing.service
+test "$(cat /sys/power/pm_print_times)" = 1
+/usr/bin/python3 -c 'import sys; sys.path.append("/home/pt/.local/share/amd-debug-tools/.venv-system/lib/python3.14/site-packages"); from amd_debug.validator import SleepValidator; print("Installed hook imports successfully")'
+
+echo 'Installing Fedora kernel 7.2.11; keeping all three currently installed kernels.'
+dnf --setopt=installonly_limit=4 install -y \
+    kernel-7.2.11-100.fc43 kernel-modules-7.2.11-100.fc43
+echo 'Installed kernel versions:'
+rpm -q kernel-core
+echo 'Kernel selected for the next boot:'
+grubby --default-kernel
+echo 'Suspend remains enabled. No reboot or sleep test has been requested.'

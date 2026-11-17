@@ -1,0 +1,10 @@
+[Unit]
+Description=Merge laptop and phone Physio Log workouts
+After=physio-log-laptop.service physio-phone-view.service
+Wants=physio-log-laptop.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/pt/dev/personal/apps/health/physio-log
+ExecStart=/usr/bin/python3 /home/pt/dev/personal/apps/health/physio-log/sync.py
+

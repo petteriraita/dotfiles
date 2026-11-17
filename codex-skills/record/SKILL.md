@@ -1,0 +1,13 @@
+---
+name: record
+description: Retrieve and record a medical or physiotherapy visit in the relevant Obsidian health note, summarizing the clinician's meaningful findings and plan.
+---
+
+# Record a medical visit
+
+Use this when asked to record or update a doctor, physiotherapy, surgery, or nursing encounter, including a recent MyCarle visit. Identify the encounter by the actual clinical source and treatment date; do not assume a scheduled visit occurred or use a file timestamp as the encounter date.
+
+1. Find and read the existing note for the same encounter. Update it without deleting the patient's own notes; create a note only if none exists. Choose the existing folder for the relevant condition and follow nearby notes' format. For hip/hamstring visits, follow `/home/pt/.codex/skills/medical-visits/SKILL.md`, including its metadata, navigation, and dashboard validation. For another condition, inspect the relevant folder and use its established format and applicable validation.
+2. Retrieve the requested clinical record through an available connection. For MyCarle or another authenticated site, read `/home/pt/.codex/skills/browser-download/SKILL.md` for the headless Brave session, saved-login and credential-handling workflow. MyCarle visit notes can be reached through Visits → the identified encounter → View clinical notes; the portal's own `GetVisitNotes` and `LoadReportContent` responses may contain the report when the viewer renders empty. Verify the clinician and treatment date before using a report. Never print secrets or credentials, including in error traces. Follow normal verification; use the user's authorized Gmail access for an emailed code if available, otherwise ask the user to complete verification. Do not open or control the user's normal Brave window.
+3. Write a concise, source-attributed summary of clinically relevant symptoms, examination or imaging findings, the clinician's assessment, advice, treatment changes, and follow-up. Include meaningful uncertainty and distinguish the patient's recollection from the clinician's note. Include specific exercises or doses only when they convey a change, key finding, or plan; omit routine exercise lists and boilerplate unless the user asks for them. Do not infer that planned or 'not completed' activities occurred. Preserve discrepancies with existing records rather than silently resolving them.
+4. Update the note's source and date evidence. Verify the saved note using the condition's normal checks; for hip visits run the medical-visits dashboard validator. Report what was updated and any source or access limitation.

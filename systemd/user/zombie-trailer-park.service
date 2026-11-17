@@ -1,0 +1,9 @@
+[Unit]
+Description=Zombie Trailer Park local practice game
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pt/dev/personal/apps/zombie-trailer-park
+ExecStart=/usr/bin/python3 -m http.server 8773 --bind 127.0.0.1 --directory /home/pt/dev/personal/apps/zombie-trailer-park/web
+Restart=on-failure
+RestartSec=2

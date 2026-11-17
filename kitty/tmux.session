@@ -1,0 +1,2 @@
+launch tmux new -A -s main
+

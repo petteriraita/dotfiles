@@ -1,0 +1,4 @@
+interface:
+  display_name: "Browser Download"
+  short_description: "Download through the signed-in Brave session without GUI control"
+  default_prompt: "Use $browser-download to fetch files headlessly through my existing Brave SSO session."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "LeetCode Practice"
+  short_description: "Create starters and guide LeetCode learning"
+  default_prompt: "Use $leetcode-practice to create a LeetCode starter file or coach me through a problem without giving the solution code."

@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Baseline diagnostics only: does not suspend, update firmware or install hooks.
+set -euo pipefail
+umask 077
+report_dir="$HOME/.local/state/suspend-diagnostics/$(date +%Y-%m-%dT%H-%M-%S%z)"
+mkdir -p "$report_dir"
+printf '%s\n' "$report_dir" > "$HOME/.local/state/suspend-diagnostics/latest-check"
+exec > >(tee "$report_dir/check.log") 2>&1
+echo 'AMD sleep prerequisite checks. This will NOT put the laptop to sleep.'
+echo "Report folder: $report_dir"
+echo 'Administrator authentication is required to read ACPI and driver diagnostics.'
+sudo /usr/bin/timeout 180 /home/pt/.local/share/amd-debug-tools/.venv-system/bin/python \
+    /home/pt/dev/config/dotfiles/bin/amd-sleep-prerequisites.py "$report_dir"
+touch "$report_dir/completed"
+echo "Checks finished. Report saved in $report_dir/check.log"

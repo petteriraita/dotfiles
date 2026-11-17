@@ -9,7 +9,7 @@
   },
   "Partial Derivative": {
     "prefix": "pd",
-    "body": "\\frac{\\partial ${1:f}}{\\partial ${2:x}}"
+    "body": "\\frac{\\partial ${1:f}}{\\partial ${2:x_i}}"
   },
   "Norm": {
   "prefix": "nn",
@@ -94,7 +94,7 @@
 
   "Align": {
     "prefix": "al",
-    "body": "\\begin{align*}\n    & ${1} \\\\\\\\\n    & $0\n\\end{align*}"
+    "body": "\\begin{align*}\n    & ${1} \\\\\\\\\n\\end{align*}"
   },
   "Itemize": {
     "prefix": "it",
@@ -103,6 +103,19 @@
   "Enumerate": {
     "prefix": "en",
     "body": "\\begin{enumerate}\n  \\item ${1}\n\\end{enumerate}"
+  },
+
+  "solutionanswerbox": {
+    "prefix": "sn",
+    "body": "\\begin{solution}\n${1}\n\\end{solution}"
+  },
+  "Enumerate numbers": {
+    "prefix": "enn",
+    "body": "\\begin{enumerate}[label=\\arabic*)]\n  \\item ${1}\n\\end{enumerate}"
+  },
+  "Enumerate letters": {
+    "prefix": "enl",
+    "body": "\\begin{enumerate}[label=\\alph*)]\n  \\item ${1}\n\\end{enumerate}"
   },
   "answerbox": {
     "prefix": "an",

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+umask 077
+report_dir="$HOME/.local/state/suspend-diagnostics/$(date +%Y-%m-%dT%H-%M-%S%z)-setup"
+mkdir -p "$report_dir"
+printf '%s\n' "$report_dir" > "$HOME/.local/state/suspend-diagnostics/latest-setup"
+exec > >(tee "$report_dir/setup.log") 2>&1
+echo "Setup log: $report_dir/setup.log"
+echo 'Install AMD sleep logging, the ACPI decoder and Fedora kernel 7.2.11.'
+echo 'Keeps existing kernels, firmware and suspend settings. Does not reboot or suspend.'
+sudo /bin/bash /home/pt/dev/config/dotfiles/bin/setup-amd-sleep-root
+touch "$report_dir/completed"
+echo 'Setup complete. The new kernel takes effect at your next reboot.'

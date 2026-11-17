@@ -193,7 +193,7 @@ bindsym $mod+r mode "resize"
 # Start i3bar to display a workspace bar (plus the system information i3status
 # finds out, if available)
 bar {
-        status_command i3status --config ~/.config/i3status/config
+        status_command /usr/bin/python3 /home/pt/dev/config/dotfiles/bin/keyboard-help.py --bar
 }
 # make a terminal start 
 bindsym $mod+Return exec kitty --session ~/.config/kitty/tmux.session
@@ -201,10 +201,13 @@ bindsym $mod+Shift+Return exec kitty
 
 
 ### my audio
-# $mod + F-keys for volume (firmware-independent)
+# Accept F keys and their media-key equivalents for the whole volume row.
 bindsym $mod+F1 exec pamixer -t && $refresh_i3status
+bindsym $mod+XF86AudioMute exec pamixer -t && $refresh_i3status
 bindsym $mod+F2 exec pamixer -d 5 && $refresh_i3status
+bindsym $mod+XF86AudioLowerVolume exec pamixer -d 5 && $refresh_i3status
 bindsym $mod+F3 exec pamixer -i 5 && $refresh_i3status
+bindsym $mod+XF86AudioRaiseVolume exec pamixer -i 5 && $refresh_i3status
 
 # $mod + F5/F6 for brightness
 bindsym $mod+F5 exec brightnessctl set 5%-
@@ -244,6 +247,9 @@ for_window [class="copyq"] floating enable
 for_window [class="copyq"] border pixel 2
 for_window [class="copyq"] resize set 1000 700
 for_window [class="copyq"] move position center
+# Keep Skyrim on its game workspace at the display's native resolution.
+assign [class="^steam_proton$" title="^Skyrim Special Edition$"] workspace 7
+for_window [class="^steam_proton$" title="^Skyrim Special Edition$"] exec --no-startup-id /home/pt/dev/config/dotfiles/bin/skyrim-fullscreen.sh
 exec --no-startup-id copyq --start-server
 
 # Start gammastep in X11 (RANDR) mode with your config.ini
@@ -251,6 +257,8 @@ exec --no-startup-id gammastep -m randr:screen=0
 
 ## bluetooht
 exec --no-startup-id blueman-applet
+# Toggle the WH-1000XM3 headset and select its Bluetooth microphone.
+bindsym $mod+Ctrl+b exec --no-startup-id /home/pt/dev/config/dotfiles/bin/toggle-wh1000xm3-mic.sh
 
 # use Mouse+Mod1 to drag floating windows to their wanted position
 floating_modifier Mod1
@@ -267,7 +275,7 @@ set $ptt /home/pt/dev/personal/apps/push-to-talk/bin/ptt-dictation
 exec_always --no-startup-id $ptt worker-start
 bindcode 191 exec --no-startup-id $ptt toggle
 
-### small.en A/B test: Kanata emits F15/F16 from physical Page Up
-set $ptt_small /home/pt/dev/personal/apps/push-to-talk/bin/ptt-dictation-small
-bindcode 193 exec --no-startup-id $ptt_small start
-bindcode 194 exec --no-startup-id $ptt_small stop
+### tap-to-toggle Parakeet from physical Page Up
+set $ptt_parakeet /home/pt/dev/personal/apps/push-to-talk/bin/ptt-dictation-parakeet
+exec_always --no-startup-id $ptt_parakeet worker-start
+bindcode 193 exec --no-startup-id $ptt_parakeet toggle

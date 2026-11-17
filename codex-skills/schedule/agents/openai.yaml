@@ -1,0 +1,3 @@
+interface:
+  display_name: "Schedule"
+  short_description: "Schedule phone alarms and call reminders"

@@ -1,0 +1,3 @@
+interface:
+  display_name: "Dotfiles Bootstrap"
+  short_description: "Keep workstation changes reproducible on new machines"

@@ -6,11 +6,14 @@ CHECK_INTERVAL_SECONDS=60
 LOW_THRESHOLD=25
 CRITICAL_THRESHOLD=15
 RESET_THRESHOLD=30
+SUSPEND_DELAY_MINUTES=4
+SUSPEND_DELAY_SECONDS=$((SUSPEND_DELAY_MINUTES * 60))
 SUSPEND_COOLDOWN_SECONDS=900
 SUSPEND_STAMP_FILE="/tmp/battery-watch.last-suspend-at"
 
-about_to_suspend=1
 last_notified_level=""
+pending_notification_ids=()
+suspend_at=0
 
 log() {
     logger -t battery-watch "$1"
@@ -22,8 +25,17 @@ read_battery_field() {
 }
 
 reset_state() {
-    about_to_suspend=1
     last_notified_level=""
+    suspend_at=0
+}
+
+clear_pending_notifications() {
+    local notification_id
+
+    for notification_id in "${pending_notification_ids[@]}"; do
+        dunstctl close "$notification_id" || true
+    done
+    pending_notification_ids=()
 }
 
 notify_once() {
@@ -36,7 +48,9 @@ notify_once() {
         return
     fi
 
-    notify-send -u "$urgency" "$title" "$body"
+    local notification_id
+    notification_id="$(notify-send -p -u "$urgency" "$title" "$body")"
+    pending_notification_ids+=("$notification_id")
     last_notified_level="$level"
     log "$title - $body"
 }
@@ -59,13 +73,13 @@ attempt_suspend() {
 
     date +%s >"$SUSPEND_STAMP_FILE"
     log "Attempting suspend at critical battery"
-    notify-send -u critical "Suspending now" "Battery stayed at or below ${CRITICAL_THRESHOLD}% for another check"
+    pending_notification_ids+=("$(notify-send -p -u critical "Suspending now" "Battery stayed at or below ${CRITICAL_THRESHOLD}% for ${SUSPEND_DELAY_MINUTES} minutes")")
     loginctl lock-session || true
     sleep 2
 
     if ! timeout --foreground 20s systemctl suspend; then
         log "Suspend command failed or timed out"
-        notify-send -u critical "Suspend failed" "Auto-suspend did not complete; check journalctl -t battery-watch"
+        pending_notification_ids+=("$(notify-send -p -u critical "Suspend failed" "Auto-suspend did not complete; check journalctl -t battery-watch")")
     fi
 }
 
@@ -79,6 +93,7 @@ while true; do
     status="$(read_battery_field status)"
 
     if [[ "$capacity" -ge "$RESET_THRESHOLD" || "$status" == "Charging" ]]; then
+        clear_pending_notifications
         reset_state
     fi
 
@@ -91,12 +106,12 @@ while true; do
     fi
 
     if [[ ("$status" == "Discharging" || "$status" == "Not charging") && "$capacity" -le "$CRITICAL_THRESHOLD" ]]; then
-        if [[ "$about_to_suspend" -eq 0 ]]; then
-            about_to_suspend=1
+        if [[ "$suspend_at" -gt 0 && "$(date +%s)" -ge "$suspend_at" ]]; then
+            suspend_at=0
             attempt_suspend
-        else
-            notify_once "critical" "critical" "Suspending soon" "Battery still at or below ${CRITICAL_THRESHOLD}%; suspend on next check"
-            about_to_suspend=0
+        elif [[ "$suspend_at" -eq 0 ]]; then
+            suspend_at="$(( $(date +%s) + SUSPEND_DELAY_SECONDS ))"
+            notify_once "critical" "critical" "Suspending soon" "Battery still at or below ${CRITICAL_THRESHOLD}%; suspending in ${SUSPEND_DELAY_MINUTES} minutes"
         fi
     fi
 

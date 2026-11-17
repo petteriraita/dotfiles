@@ -1,0 +1,310 @@
+[
+  {
+    "path": "dev/config/dotfiles",
+    "url": "git@github.com:petteriraita/dotfiles.git",
+    "branch": "main",
+    "recorded_commit": "d5e0c1e7823c4a92cafd62d8fc7809da15beb816"
+  },
+  {
+    "path": "dev/experiments/GWPinLanguageModels",
+    "url": "git@github.com:petteriraita/backup-gwp-language-models.git",
+    "branch": "main",
+    "recorded_commit": "3775a1535aed5f71d5fbe81447869059e5806df0"
+  },
+  {
+    "path": "dev/experiments/demant_audio_explorers/Audio-Explorers-2026",
+    "url": "git@github.com:petteriraita/backup-audio-explorers-2026.git",
+    "branch": "main",
+    "recorded_commit": "b0e2a9a173f39039cc9266f6181773953bb0ff0f"
+  },
+  {
+    "path": "dev/external/dotfiles-theprimeagen",
+    "url": "git@github.com:ThePrimeagen/.dotfiles.git",
+    "branch": "master",
+    "recorded_commit": "602019e902634188ab06ea31251c01c1a43d1621"
+  },
+  {
+    "path": "dev/external/random-cloned-repos/arsenik",
+    "url": "git@github.com:petteriraita/backup-arsenik.git",
+    "branch": "main",
+    "recorded_commit": "b5916e6f4f18a06d8489a78db699e939d9909df3"
+  },
+  {
+    "path": "dev/external/random-cloned-repos/kanata",
+    "url": "git@github.com:jtroo/kanata.git",
+    "branch": "main",
+    "recorded_commit": "a93618e0f341c3248a8bca662fcd569ac2427156"
+  },
+  {
+    "path": "dev/external/random-cloned-repos/rars",
+    "url": "git@github.com:petteriraita/backup-rars.git",
+    "branch": "master",
+    "recorded_commit": "a0a8b0288bc7b9dc836d9d3e8f1453947c0c5da7"
+  },
+  {
+    "path": "dev/external/upstream-repos/AutoCorrode",
+    "url": "git@github.com:petteriraita/backup-autocorrode.git",
+    "branch": "main",
+    "recorded_commit": "11f6703b54dde9ac79a8e7b0848ea79a02db2f58"
+  },
+  {
+    "path": "dev/personal/apps/push-to-talk",
+    "url": "git@github.com:petteriraita/push-to-talk.git",
+    "branch": "main",
+    "recorded_commit": "db540f34353a8ae658e62909b043a4731262bfbb"
+  },
+  {
+    "path": "dev/personal/apps/sideways-reader",
+    "url": "git@github.com:petteriraita/sideways-reader.git",
+    "branch": "main",
+    "recorded_commit": "2f8e52868d3e7ee121ac7fc705e796fa077affa3"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/bga-replay-settings",
+    "url": "git@github.com:petteriraita/bga-replay-settings.git",
+    "branch": "main",
+    "recorded_commit": "3be958e975e0296ed8002d0d37ea6c0c199f399a"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/bga-tm-milestone-watch",
+    "url": "git@github.com:petteriraita/bga-tm-milestone-watch.git",
+    "branch": "main",
+    "recorded_commit": "3f40663"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/bga-tm-draft-checker",
+    "url": "git@github.com:petteriraita/bga-tm-draft-checker.git",
+    "branch": "main",
+    "recorded_commit": "765cc7d"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/bga-tm-scraper-registry",
+    "url": "git@github.com:petteriraita/bga-tm-scraper-registry-backup-20260917.git",
+    "branch": "master",
+    "recorded_commit": "d425930955bb320f97686deadce60c70d8f73687"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/mars-stats",
+    "url": "git@github.com:petteriraita/mars-stats.git",
+    "branch": "main",
+    "recorded_commit": "2e205426005d63e313bcf5cbc15c649296273cd2"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/mars-stats-video-slides",
+    "url": "git@github.com:petteriraita/mars-stats-video-slides.git",
+    "branch": "main",
+    "recorded_commit": "965f37c963527e6acb0adc7f7894e3b53af1b952"
+  },
+  {
+    "path": "dev/personal/automation/calendar-llm",
+    "url": "git@github.com:petteriraita/calendar_llm.git",
+    "branch": "main",
+    "recorded_commit": "7a014b7a14af01c0203d3c51188a53965714022e"
+  },
+  {
+    "path": "dev/personal/automation/tmux-session-archive",
+    "url": "git@github.com:petteriraita/tmux-session-archive.git",
+    "branch": "main",
+    "recorded_commit": "8cc4e18cad133c0ac83dd6957ad56d2dc413cf83"
+  },
+  {
+    "path": "dev/personal/hardware/edid-generator",
+    "url": "git@github.com:akatrevorjay/edid-generator.git",
+    "branch": "master",
+    "recorded_commit": "476a016d8b488df749bf6d6efbf7b9fbfb2e3cb8"
+  },
+  {
+    "path": "dev/personal/knowledge/obsidian_vault",
+    "url": "git@github.com:petteriraita/obsidian-vault.git",
+    "branch": "main",
+    "recorded_commit": "5463cedcfc8f544efcb8ff16c71729efe566320a"
+  },
+  {
+    "path": "dev/personal/learning/latex-templates",
+    "url": "git@github.com:petteriraita/latex-templates.git",
+    "branch": "main",
+    "recorded_commit": "c14f3ed2de39307761c378fc4de34c89115872bf"
+  },
+  {
+    "path": "dev/personal/learning/leetcode",
+    "url": "git@github.com:petteriraita/leetcode.git",
+    "branch": "main",
+    "recorded_commit": "b70b41640735173d4bc8dcd3ab83772ac0e06593"
+  },
+  {
+    "path": "dev/personal/private/keepasxc_passwords",
+    "url": "git@github.com:petteriraita/keepasxc_passwords.git",
+    "branch": "main",
+    "recorded_commit": "49f0757d850a9c826f07151993864a29a71ada08"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/02287",
+    "url": "git@github.com:petteriraita/02287.git",
+    "branch": "main",
+    "recorded_commit": "2d2ed31a20226d1a89d03b72f32c60d15ed4769e"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/Cryptography-Fundamentals",
+    "url": "git@github.com:franciscofguerreiro/Cryptography-Fundamentals.git",
+    "branch": "main",
+    "recorded_commit": "153c0bcd1862fa74e8f0b4ca21a63eada0465c0b"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/assert-aware-analyzer",
+    "url": "git@github.com:Program-Analysis-Team-18/assert-aware-analyzer.git",
+    "branch": "main",
+    "recorded_commit": "c440519608d00ba2fc1ee9f8254200c147ece4b1"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/chp-project",
+    "url": "git@github.com:petteriraita/chp-project.git",
+    "branch": "main",
+    "recorded_commit": "c0d471b61f73991d2a4600b58acedb18bc47ba84"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/computationally-hard-problems",
+    "url": "git@github.com:petteriraita/computationally-hard-problems.git",
+    "branch": "main",
+    "recorded_commit": "f63b2e1b26c58989b57ce775447d1ae2b1462b80"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/cryptography-fundamentals",
+    "url": "git@github.com:petteriraita/cryptography-fundamentals.git",
+    "branch": "main",
+    "recorded_commit": "c95536912d6e89f4ce0f21ff7431ef14431e679a"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/innovation_course",
+    "url": "git@github.com:petteriraita/innovation_course.git",
+    "branch": "main",
+    "recorded_commit": "84a6c60e6b2cc66db1cf8357f9d7d3cee116e0c3"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/intro-to-numerical-algorithms",
+    "url": "git@github.com:petteriraita/intro-to-numerical-algorithms.git",
+    "branch": "main",
+    "recorded_commit": "b7b1d85b70beefccae6e5e7b0b15fad162c2ffd6"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/jpamb",
+    "url": "git@github.com:kalhauge/jpamb.git",
+    "branch": "main",
+    "recorded_commit": "a5941ecf73ba9b5a51656d898cf350179bcd3f21"
+  },
+  {
+    "path": "dev/school/dtu/2025-autumn/social_network_simulator",
+    "url": "git@github.com:tomas-chmelik/social_network_simulator.git",
+    "branch": "main",
+    "recorded_commit": "8e408887ae19916fe88d74096d823ccc9246f8e"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/02247_Compiler_Construction",
+    "url": "git@github.com:petteriraita/02247_Compiler_Construction.git",
+    "branch": "main",
+    "recorded_commit": "12795e0a4afcf8b4760c2c2475c2fe95aefd30e7"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/02256_Automated_Reasoning",
+    "url": "git@github.com:petteriraita/02256_Automated_Reasoning.git",
+    "branch": "main",
+    "recorded_commit": "bf2b7451938870ac6650622d39e67acb117e3f61"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/02282_Algorithms_for_Massive_Data_Sets",
+    "url": "git@github.com:petteriraita/02282_Algorithms_for_Massive_Data_Sets.git",
+    "branch": "main",
+    "recorded_commit": "47acc991779ac45fc39c10ab17033f3377fc95f8"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/02285_Artificial_Intelligence_and_Multi-Agent_Systems",
+    "url": "git@github.com:petteriraita/02285_Artificial_Intelligence_and_Multi-Agent_Systems.git",
+    "branch": "main",
+    "recorded_commit": "77b0b1c44e00797aecf67d493555f90d62f53053"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/02291_System_Integration",
+    "url": "git@github.com:petteriraita/02291_System_Integration.git",
+    "branch": "main",
+    "recorded_commit": "92038771f956465e9f2dba38aacec5cd351e0898"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/12101_Quantitative_methods_to_assess_sustainability",
+    "url": "git@github.com:petteriraita/12101_Quantitative_methods_to_assess_sustainability.git",
+    "branch": "main",
+    "recorded_commit": "d36e20a7ee2596379507e97682e3536f6114c5e5"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/hyggec-full",
+    "url": "git@gitlab.gbar.dtu.dk:group-02/hyggec-full.git",
+    "branch": "main",
+    "recorded_commit": "2d06db19041f727667ee5f5e4be62aeddebb730f"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/hyggecmyfork",
+    "url": "git@gitlab.gbar.dtu.dk:02247/f26/hyggec.git",
+    "branch": "main",
+    "recorded_commit": "04a289521ff7c092d3f08257f0d967d02810ffd5"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/multiagent_repos/02285_group_37_2026",
+    "url": "git@github.com:OskarKocjancic/02285_group_37_2026.git",
+    "branch": null,
+    "recorded_commit": "fd620dc135fda671b86d18204391545790a524d1"
+  },
+  {
+    "path": "dev/school/dtu/2026-spring/multiagent_repos/MAPF-in-High-Density-Envs",
+    "url": "git@github.com:ToyotaCRDL/MAPF-in-High-Density-Envs.git",
+    "branch": "main",
+    "recorded_commit": "a82ed819d37932ff845e170805f41e24c82e550b"
+  },
+  {
+    "path": "dev/school/uiuc/2026-fall/CS_425_Distributed_Systems",
+    "url": "git@github.com:petteriraita/CS_425_Distributed_Systems.git",
+    "branch": "main",
+    "recorded_commit": "387a5430c68cdd25101e5eef57f0483ef7eb05bd"
+  },
+  {
+    "path": "dev/school/uiuc/2026-fall/CS_545_Machine_Learning_for_Signal_Processing",
+    "url": "git@github.com:petteriraita/CS_545_Machine_Learning_for_Signal_Processing.git",
+    "branch": "main",
+    "recorded_commit": "c48966a35c52cd4607421f3db9f9703ecd6f4e61"
+  },
+  {
+    "path": "dev/school/uiuc/2026-fall/CS_579_Computational_Complexity",
+    "url": "git@github.com:petteriraita/CS_579_Computational_Complexity.git",
+    "branch": "main",
+    "recorded_commit": "dbb0983435c372003761dff721481f437a5368f0"
+  },
+  {
+    "path": "dev/school/uiuc/2026-fall/ECE_493_MATH_487_Advanced_Engineering_Math",
+    "url": "git@github.com:petteriraita/ECE_493_MATH_487_Advanced_Engineering_Math.git",
+    "branch": "main",
+    "recorded_commit": "6a0f286ac2142bc99d32dd58ab38072ae18887a6"
+  },
+  {
+    "path": "dev/school/uiuc/2026-fall/ECE_494_Deep_Learning_for_Computer_Vision",
+    "url": "git@github.com:petteriraita/ECE_494_Deep_Learning_for_Computer_Vision.git",
+    "branch": "main",
+    "recorded_commit": "8077641ea44d5bb3ad2f21201243241aa6173f2d"
+  },
+  {
+    "path": "dev/personal/automation/personal-scripts",
+    "url": "git@github.com:petteriraita/personal-scripts.git",
+    "branch": "main"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/fast-replay-viewer",
+    "url": "git@github.com:petteriraita/fast-replay-viewer.git",
+    "branch": "codex/bga-visual-parity"
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/mars-stats-static",
+    "url": "git@github.com:petteriraita/mars-stats.git",
+    "branch": null
+  },
+  {
+    "path": "dev/personal/apps/terraforming-mars/low-elo-stopper",
+    "url": "https://github.com/YiminWang102/ArkNovaDownVoter.git",
+    "branch": "main"
+  }
+]

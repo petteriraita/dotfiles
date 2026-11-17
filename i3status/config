@@ -1,0 +1,44 @@
+# i3status configuration
+
+general {
+        output_format = "i3bar"
+        colors = true
+        interval = 5
+}
+
+order += "wireless _first_"
+order += "battery all"
+order += "volume master"
+order += "load"
+order += "memory"
+order += "tztime local"
+
+wireless _first_ {
+        format_up = "Wi-Fi: %quality (%essid)"
+        format_down = "Wi-Fi: down"
+}
+
+battery all {
+        format = "%status %percentage %remaining"
+}
+
+volume master {
+        format = "VOL: %volume"
+        format_muted = "VOL: muted (%volume)"
+        device = "pulse"
+}
+
+
+load {
+        format = "Load (1 min): %1min"
+}
+
+memory {
+        format = "RAM: %available"
+        threshold_degraded = "1G"
+        format_degraded = "MEMORY < %available"
+}
+
+tztime local {
+        format = "%Y-%m-%d %H:%M:%S"
+}

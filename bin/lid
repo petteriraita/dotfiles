@@ -1,0 +1,101 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+WINDOW_SECONDS="${LID_WINDOW_SECONDS:-1200}"
+SYSTEMCTL_BIN="${LID_SYSTEMCTL_BIN:-/usr/bin/systemctl}"
+SYSTEMD_RUN_BIN="${LID_SYSTEMD_RUN_BIN:-/usr/bin/systemd-run}"
+STATE_DIR="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/lid-once"
+SELF=/home/pt/dev/config/dotfiles/bin/lid
+
+if [[ ! "$WINDOW_SECONDS" =~ ^[0-9]+$ ]] || (( WINDOW_SECONDS < 1 )); then
+    printf 'LID_WINDOW_SECONDS must be a positive integer\n' >&2
+    exit 2
+fi
+
+if [[ "${1:-}" == --worker ]]; then
+    ready_file="${2:?missing ready file}"
+    window="${3:?missing window}"
+    touch -- "$ready_file"
+    sleep "$window"
+    exit 0
+fi
+
+if (( $# > 1 )); then
+    printf 'Usage: lid [minutes|status|cancel]\n' >&2
+    exit 2
+fi
+
+action="${1:-start}"
+if [[ "$action" =~ ^[0-9]+$ ]]; then
+    if (( ${#action} > 6 )); then
+        printf 'Minutes must be between 1 and 525600\n' >&2
+        exit 2
+    fi
+    minutes=$((10#$action))
+    if (( minutes < 1 || minutes > 525600 )); then
+        printf 'Minutes must be between 1 and 525600\n' >&2
+        exit 2
+    fi
+    WINDOW_SECONDS=$((minutes * 60))
+    action=start
+fi
+
+mkdir -p -- "$STATE_DIR"
+chmod 700 -- "$STATE_DIR"
+exec 9>"$STATE_DIR/lock"
+flock 9
+state_file="$STATE_DIR/current"
+unit=''
+until_epoch=''
+if [[ -r "$state_file" ]]; then
+    read -r unit until_epoch <"$state_file" || true
+fi
+
+case "$action" in
+    status)
+        if [[ -n "$unit" ]] && "$SYSTEMCTL_BIN" --user is-active --quiet "$unit"; then
+            printf 'Lid awake window active until %s\n' "$(date -d "@$until_epoch" '+%H:%M:%S')"
+        else
+            printf 'Normal lid behavior is active\n'
+        fi
+        ;;
+    cancel)
+        "$SYSTEMCTL_BIN" --user stop lid-delay.service 2>/dev/null || true
+        if [[ -n "$unit" ]] && "$SYSTEMCTL_BIN" --user is-active --quiet "$unit"; then
+            "$SYSTEMCTL_BIN" --user stop "$unit"
+        fi
+        rm -f -- "$state_file"
+        printf 'Normal lid behavior restored\n'
+        ;;
+    start)
+        "$SYSTEMCTL_BIN" --user stop lid-delay.service 2>/dev/null || true
+        if [[ -n "$unit" ]] && "$SYSTEMCTL_BIN" --user is-active --quiet "$unit"; then
+            "$SYSTEMCTL_BIN" --user stop "$unit"
+        fi
+        unit="lid-once-$(date +%s%N)-$$.service"
+        ready_file="$STATE_DIR/$unit.ready"
+        rm -f -- "$state_file"
+        "$SYSTEMD_RUN_BIN" --user --unit="$unit" --collect \
+            --description="Keep lid closed awake for $((WINDOW_SECONDS / 60)) minutes" \
+            /usr/bin/systemd-inhibit --what=handle-lid-switch --mode=block \
+            --who=lid --why='Allow Codex to finish after closing the lid' \
+            "$SELF" --worker "$ready_file" "$WINDOW_SECONDS"
+        printf '%s %s\n' "$unit" "$(($(date +%s) + WINDOW_SECONDS))" >"$state_file"
+        for ((attempt = 0; attempt < 50; attempt++)); do
+            if [[ -e "$ready_file" ]]; then
+                rm -f -- "$ready_file"
+                printf 'Lid may stay closed for the next %s minutes; normal behavior returns afterward\n' "$((WINDOW_SECONDS / 60))"
+                exit 0
+            fi
+            sleep 0.1
+        done
+        "$SYSTEMCTL_BIN" --user stop "$unit" || true
+        rm -f -- "$state_file" "$ready_file"
+        printf 'Could not acquire the lid inhibitor; normal lid behavior is unchanged\n' >&2
+        exit 1
+        ;;
+    *)
+        printf 'Usage: lid [minutes|status|cancel]\n' >&2
+        exit 2
+        ;;
+esac

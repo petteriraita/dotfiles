@@ -1,0 +1,13 @@
+[Unit]
+Description=Local Physio Log workout tracker
+
+[Service]
+Type=simple
+WorkingDirectory=/home/pt/dev/personal/apps/health/physio-log
+Environment="PHYSIO_DATA_STATUS=Laptop copy: phone workout history is pending import. New workouts here save to this laptop."
+ExecStart=/usr/bin/python3 /home/pt/dev/personal/apps/health/physio-log/server.py --port 18768 --data-dir /home/pt/.local/share/physio-log/workouts
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

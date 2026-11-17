@@ -62,7 +62,8 @@ detect_layer() {
 
     if [[ "$class_value" =~ $SIOYEK_CLASS_REGEX ]]; then
         desired_layer="$SIOYEK_LAYER"
-    elif [[ "$class_value" =~ $BRAVE_CLASS_REGEX ]]; then
+    # Anki and Discord share Brave's W mapping for native Ctrl+W and word deletion.
+    elif [[ "$class_value" =~ $BRAVE_CLASS_REGEX || "$class_value" == '"anki", "Anki"' || "$class_value" == '"discord", "discord"' ]]; then
         desired_layer="$BRAVE_LAYER"
     elif [[ "$class_value" =~ $GAME_CLASS_REGEX ]]; then
         if [[ -z "$GAME_TITLE_REGEX" ]]; then

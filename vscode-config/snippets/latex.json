@@ -221,7 +221,7 @@
   "Greek upsilon": { "prefix": ";y", "body": "\\upsilon" },
   "Greek phi": { "prefix": ";f", "body": "\\phi" },
   "Greek chi": { "prefix": ";c", "body": "\\chi" },
-  "Greek psi": { "prefix": ";ps", "body": "\\psi" },
+  "Greek psi": { "prefix": ";q", "body": "\\psi" },
   "Greek omega": { "prefix": ";w", "body": "\\omega" },
 "Greek Alpha":   { "prefix": ";A",  "body": "\\Alpha" },
 "Greek Beta":    { "prefix": ";B",  "body": "\\Beta" },
@@ -245,7 +245,7 @@
 "Greek Upsilon": { "prefix": ";Y",  "body": "\\Upsilon" },
 "Greek Phi":     { "prefix": ";F",  "body": "\\Phi" },
 "Greek Chi":     { "prefix": ";C",  "body": "\\Chi" },
-"Greek Psi":     { "prefix": ";PS", "body": "\\Psi" },
+"Greek Psi":     { "prefix": ";Q",  "body": "\\Psi" },
 "Greek Omega":   { "prefix": ";W",  "body": "\\Omega" }
 
 }

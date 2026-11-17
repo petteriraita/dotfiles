@@ -6,11 +6,16 @@ local i = ls.insert_node
 
 local fmta = require('luasnip.extras.fmt').fmta
 
+local snippets = {}
+local function collect_snippets(_, entries)
+  vim.list_extend(snippets, entries)
+end
+
 local function math()
   return vim.fn['vimtex#syntax#in_mathzone']() == 1
 end
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = '([%a])(%d)', regTrig = true, snippetType = 'autosnippet' },
     f(function(_, snip)
@@ -20,14 +25,17 @@ ls.add_snippets('tex', {
   ),
 })
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s({ trig = 'floor', snippetType = 'autosnippet' }, fmta([[\lfloor <> \rfloor]], { i(1) }), { condition = math }),
 })
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s({ trig = 'ceil', snippetType = 'autosnippet' }, fmta([[\lceil <> \rceil]], { i(1) }), { condition = math }),
 })
-ls.add_snippets('tex', {
+collect_snippets('tex', {
+  s({ trig = 'ti', wordTrig = true, snippetType = 'autosnippet' }, t '\\times', { condition = math }),
+})
+collect_snippets('tex', {
   s(
     { trig = 'lg', wordTrig = true, snippetType = 'autosnippet' },
     fmta([[\log(<>)]], {
@@ -36,7 +44,7 @@ ls.add_snippets('tex', {
     { condition = math }
   ),
 }) -- The snippet for the mk math mode
-ls.add_snippets('tex', {
+collect_snippets('tex', {
 
   s(
     { trig = 'mk', wordTrig = true, snippetType = 'autosnippet' },
@@ -67,7 +75,7 @@ ls.add_snippets('tex', {
     }
   ),
 })
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'sumi', wordTrig = true, snippetType = 'autosnippet' },
 
@@ -80,7 +88,7 @@ ls.add_snippets('tex', {
     }
   ),
 })
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'rm', wordTrig = true, snippetType = 'autosnippet' },
 
@@ -96,7 +104,7 @@ ls.add_snippets('tex', {
   ),
 })
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'sq', wordTrig = true, snippetType = 'autosnippet' },
 
@@ -112,7 +120,7 @@ ls.add_snippets('tex', {
   ),
 })
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'pm', wordTrig = true, snippetType = 'autosnippet' },
     fmta(
@@ -133,7 +141,7 @@ ls.add_snippets('tex', {
   ),
 })
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'dm', wordTrig = true, snippetType = 'autosnippet' },
 
@@ -160,7 +168,7 @@ ls.add_snippets('tex', {
 
 --add the begin snippet block
 local rep = require('luasnip.extras').rep
-ls.add_snippets('tex', {
+collect_snippets('tex', {
 
   s(
     { trig = 'bgn', snippetType = 'autosnippet', line_begin = true },
@@ -181,7 +189,7 @@ ls.add_snippets('tex', {
 })
 
 -- the ttt text
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'tt', wordTrig = true, snippetType = 'autosnippet' },
     fmta('\\texttt{ <> }', {
@@ -191,7 +199,7 @@ ls.add_snippets('tex', {
   ),
 })
 -- the text
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   s(
     { trig = 'tx', wordTrig = true, snippetType = 'autosnippet' },
     fmta('\\text{ <> }', {
@@ -219,7 +227,7 @@ local function split_last_paren(str)
   return nil, nil
 end
 
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   -- // -> \frac{}{}
   s(
     { trig = '//', snippetType = 'autosnippet', priority = 800 },
@@ -261,10 +269,11 @@ ls.add_snippets('tex', {
 })
 
 --the greek letters automatching
-ls.add_snippets('tex', {
+collect_snippets('tex', {
   -- lowercase
   s({ trig = ';a', snippetType = 'autosnippet' }, { t '\\alpha' }),
   s({ trig = ';b', snippetType = 'autosnippet' }, { t '\\beta' }),
+  s({ trig = ';c', snippetType = 'autosnippet' }, { t '\\varphi' }),
   s({ trig = ';g', snippetType = 'autosnippet' }, { t '\\gamma' }),
   s({ trig = ';d', snippetType = 'autosnippet' }, { t '\\delta' }),
   s({ trig = ';e', snippetType = 'autosnippet' }, { t '\\epsilon' }),
@@ -285,13 +294,14 @@ ls.add_snippets('tex', {
   s({ trig = ';y', snippetType = 'autosnippet' }, { t '\\upsilon' }),
   s({ trig = ';f', snippetType = 'autosnippet' }, { t '\\phi' }),
   s({ trig = ';c', snippetType = 'autosnippet' }, { t '\\chi' }),
-  s({ trig = ';ps', snippetType = 'autosnippet' }, { t '\\psi' }),
+  s({ trig = ';q', snippetType = 'autosnippet' }, { t '\\psi' }),
   s({ trig = ';w', snippetType = 'autosnippet' }, { t '\\omega' }),
   -- vector calculus
   s({ trig = ';v', snippetType = 'autosnippet' }, { t '\\nabla' }),
   -- uppercase
   s({ trig = ';A', snippetType = 'autosnippet' }, { t '\\Alpha' }),
   s({ trig = ';B', snippetType = 'autosnippet' }, { t '\\Beta' }),
+  s({ trig = ';C', snippetType = 'autosnippet' }, { t '\\Varphi' }),
   s({ trig = ';G', snippetType = 'autosnippet' }, { t '\\Gamma' }),
   s({ trig = ';D', snippetType = 'autosnippet' }, { t '\\Delta' }),
   s({ trig = ';E', snippetType = 'autosnippet' }, { t '\\Epsilon' }),
@@ -312,6 +322,8 @@ ls.add_snippets('tex', {
   s({ trig = ';Y', snippetType = 'autosnippet' }, { t '\\Upsilon' }),
   s({ trig = ';F', snippetType = 'autosnippet' }, { t '\\Phi' }),
   s({ trig = ';C', snippetType = 'autosnippet' }, { t '\\Chi' }),
-  s({ trig = ';PS', snippetType = 'autosnippet' }, { t '\\Psi' }),
+  s({ trig = ';Q', snippetType = 'autosnippet' }, { t '\\Psi' }),
   s({ trig = ';W', snippetType = 'autosnippet' }, { t '\\Omega' }),
 }, { condition = math })
+
+return snippets

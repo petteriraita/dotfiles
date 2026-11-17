@@ -1,0 +1,14 @@
+[Unit]
+Description=Bluetooth media controls for desktop players
+Wants=dbus.socket
+After=dbus.socket dbus.service
+ConditionUser=!@system
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/mpris-proxy
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=default.target

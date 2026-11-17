@@ -1,18 +1,4 @@
 {
-	"print variable": {
-		"prefix": "cl",
-		"body": [
-			"System.out.println(\"$1 \" + $1);"
-		],
-		"description": "Log output to console"
-	},
-	"print newline variable": {
-		"prefix": "clvn",
-		"body": [
-			"System.out.println(\"$1:\\n\" + $1);"
-		],
-		"description": "Log output to console"
-	},
 	"Print type variable": {
 		"prefix": "clvt",
 		"body": [
@@ -34,21 +20,6 @@
 		"prefix": "dcl",
 		"body": [
 			"System.err.println(\"$1\");"
-		],
-		"description": "Log output to console"
-	},
-	"DPrint variable": {
-		"prefix": "dclv",
-		"body": [
-			"System.err.println(\"$1: \" + $1);"
-		],
-		"description": "Log output to console"
-	},
-
-	"Print variable": {
-		"prefix": "clv",
-		"body": [
-			"System.out.println(\"$1: \" + $1);"
 		],
 		"description": "Log output to console"
 	}

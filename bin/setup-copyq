@@ -1,0 +1,55 @@
+#!/usr/bin/env python3
+"""Restore selected CopyQ preferences, shortcut and secret-history behavior."""
+import shutil
+import subprocess
+import sys
+
+if not shutil.which("copyq"):
+    sys.exit("Install CopyQ first (Fedora: sudo dnf install copyq).")
+
+# CopyQ's CLI interprets backslash escapes before evaluating scripts. Encoding the
+# script avoids corrupting quotes in the nested command body.
+script = '''
+var cs = commands();
+var ruleId = "personal_store_secret_clipboard";
+var ruleName = "Store secret clipboard content";
+var kept = [];
+var hasToggle = false;
+for (var i = 0; i < cs.length; ++i) {
+    if (cs[i].internalId === "copyq_global_toggle") {
+        cs[i].globalShortcuts = ["alt+v"];
+        hasToggle = true;
+    }
+    if (cs[i].internalId !== ruleId && cs[i].name !== ruleName)
+        kept.push(cs[i]);
+}
+if (!hasToggle) kept.push({
+    name: "Show/hide main window",
+    internalId: "copyq_global_toggle",
+    cmd: "copyq: toggle()",
+    isGlobalShortcut: true,
+    globalShortcuts: ["alt+v"],
+    enable: true
+});
+kept.push({
+    name: ruleName,
+    internalId: ruleId,
+    cmd: "copyq: onSecretClipboardChanged = onClipboardChanged",
+    isScript: true,
+    enable: true
+});
+setCommands(kept);
+config("activate_pastes", "true");
+config("close_on_unfocus", "true");
+config("maxitems", "200");
+config("check_selection", "false");
+config("copy_selection", "false");
+print("CopyQ now saves secret clipboard content, including KeePassXC passwords.");
+'''
+encoded = "eval(String.fromCharCode(" + ",".join(str(ord(c)) for c in script) + "))"
+try:
+    subprocess.run(["copyq", "eval", encoded], check=True, timeout=20)
+except subprocess.TimeoutExpired:
+    sys.exit("CopyQ did not respond. Start CopyQ in your desktop session, then retry.")
+except subprocess.CalledProcessError as error:
+    sys.exit(error.returncode)

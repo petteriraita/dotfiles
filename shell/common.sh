@@ -202,6 +202,7 @@ p() {
 _codexa() {
     local use_home=$1
     local use_search=$2
+    local launch_directory="$PWD"
     local subcommand
     local -a options
     shift 2
@@ -209,6 +210,8 @@ _codexa() {
     options=(--dangerously-bypass-approvals-and-sandbox)
     if [ "$use_home" = true ]; then
         options+=(-C /home/pt)
+        options+=(-c "developer_instructions=Launch context: The user started this Codex invocation from: ${launch_directory}
+The Codex working directory is intentionally /home/pt. Keep that working directory. Use the launch directory as the default project/task context when the user refers to this folder or this project. Distinguish the launch directory from the actual working directory when asked. This context describes this invocation, including when resuming a session.")
     fi
     if [ "$use_search" = true ]; then
         options+=(--search)

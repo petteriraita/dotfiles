@@ -4,3 +4,5 @@ nvim/.codex
 nvim/.nvimlog
 
 zsh/.zcompdump
+
+bootstrap/__pycache__/

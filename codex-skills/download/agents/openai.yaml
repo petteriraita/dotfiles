@@ -1,0 +1,4 @@
+interface:
+  display_name: "Download"
+  short_description: "Download web files into a local folder"
+  default_prompt: "Use $download to save requested files from the web into my local folder."

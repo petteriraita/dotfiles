@@ -1,0 +1,4 @@
+interface:
+  display_name: "Anki Review Cards"
+  short_description: "Draft and stage review-first Anki cards"
+  default_prompt: "Use $anki-review-cards to make review-first cards from this material."
